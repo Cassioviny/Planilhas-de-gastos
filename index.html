@@ -4,17 +4,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link rel="manifest" href="manifest.json">
-    <title>Meu Controle Financeiro - Viny Webdesign</title>
+    <title>Meu Controle Financeiro Pro - Viny Webdesign</title>
 
-    <!-- Favicon -->
     <link rel="icon" href="logo.png" type="image/png">
+    <link rel="manifest" href="manifest.json">
 
-    <!-- Banco de Dados IndexedDB via Dexie.js -->
+    <!-- Dexie.js (IndexedDB) -->
     <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
-
-    <!-- Biblioteca para Gráficos (Chart.js) -->
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- jsPDF para exportação em PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <style>
         :root {
@@ -28,6 +28,16 @@
             --text-main: #0f172a;
             --text-muted: #64748b;
             --border: #e2e8f0;
+            --header-bg: linear-gradient(135deg, #1e293b, #0f172a);
+        }
+
+        body.dark-mode {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --header-bg: linear-gradient(135deg, #0f172a, #020617);
         }
 
         * {
@@ -36,6 +46,7 @@
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             -webkit-tap-highlight-color: transparent;
+            transition: background-color 0.2s, color 0.2s;
         }
 
         body {
@@ -50,9 +61,31 @@
             margin: 0 auto;
         }
 
-        /* Header e Logo Ajustados */
+        /* Top Bar Controles */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .btn-icon {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Header */
         header {
-            background: linear-gradient(135deg, #1e293b, #0f172a);
+            background: var(--header-bg);
             color: white;
             padding: 16px;
             border-radius: 16px;
@@ -70,7 +103,6 @@
             margin-bottom: 6px;
         }
 
-        /* LOGO COM TAMANHO REDUZIDO (140px) */
         .brand-logo {
             max-width: 140px;
             height: auto;
@@ -89,58 +121,72 @@
             margin-top: 2px;
         }
 
-        /* Painel de Notificação de Parcelas */
+        /* Alertas */
+        .alerts-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
         .notification-card {
-            background: #fffbe0;
-            border: 1px solid var(--warning);
             border-radius: 12px;
             padding: 12px 16px;
-            margin-bottom: 16px;
             display: flex;
             align-items: center;
             gap: 12px;
-        }
-
-        .notification-card .icon {
-            font-size: 20px;
-        }
-
-        .notification-card .info {
             font-size: 13px;
+        }
+
+        .notification-card.vencida {
+            background: #fef2f2;
+            border: 1px solid var(--danger);
+            color: #991b1b;
+        }
+
+        .notification-card.pendente {
+            background: #fffbe0;
+            border: 1px solid var(--warning);
             color: #78350f;
         }
 
-        .notification-card .info strong {
-            font-weight: 700;
-        }
-
-        /* Filtro de Mês */
+        /* Filtro e Busca */
         .filter-card {
             background: var(--card-bg);
             padding: 12px 16px;
             border-radius: 12px;
             margin-bottom: 16px;
             display: flex;
-            align-items: center;
-            justify-content: space-between;
+            flex-direction: column;
+            gap: 10px;
             border: 1px solid var(--border);
         }
 
+        .filter-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
         .filter-card label {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
             color: var(--text-muted);
         }
 
-        .filter-card input {
+        .filter-card input,
+        .filter-card select {
             border: 1px solid var(--border);
             padding: 6px 10px;
             border-radius: 8px;
-            font-size: 14px;
+            font-size: 13px;
             outline: none;
+            background: var(--card-bg);
+            color: var(--text-main);
         }
 
-        /* Dashboard Cards */
+        /* Dashboard */
         .dashboard {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -176,27 +222,20 @@
             color: var(--danger);
         }
 
-        /* Gráfico */
-        .chart-section {
+        /* Seções / Cards Genericos */
+        .section-card {
             background: var(--card-bg);
             padding: 16px;
             border-radius: 16px;
             margin-bottom: 16px;
             border: 1px solid var(--border);
+        }
+
+        .chart-section {
             max-height: 250px;
             display: flex;
             justify-content: center;
             align-items: center;
-        }
-
-        /* Form e Seções */
-        .form-section,
-        .list-section {
-            background: var(--card-bg);
-            padding: 16px;
-            border-radius: 16px;
-            margin-bottom: 16px;
-            border: 1px solid var(--border);
         }
 
         h2 {
@@ -225,7 +264,8 @@
             border-radius: 10px;
             border: 1px solid var(--border);
             font-size: 14px;
-            background: #fff;
+            background: var(--card-bg);
+            color: var(--text-main);
             outline: none;
         }
 
@@ -244,14 +284,29 @@
             font-weight: 700;
             font-size: 15px;
             cursor: pointer;
-            transition: background 0.2s;
         }
 
-        button.btn-submit:active {
-            background: var(--primary-dark);
+        /* Meta de Gastos */
+        .budget-progress-container {
+            margin-top: 8px;
         }
 
-        /* Lista de Lançamentos */
+        .budget-bar-bg {
+            background: var(--border);
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .budget-bar-fill {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.3s, background-color 0.3s;
+        }
+
+        /* Lista */
         .item {
             display: flex;
             justify-content: space-between;
@@ -267,7 +322,7 @@
         .item-info {
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 4px;
         }
 
         .item-title {
@@ -280,21 +335,59 @@
             color: var(--text-muted);
         }
 
-        .badge-card {
-            background: #dbeafe;
-            color: #1e40af;
+        .badge {
             padding: 2px 6px;
             border-radius: 6px;
             font-size: 10px;
             font-weight: bold;
+            display: inline-block;
+        }
+
+        .badge-card {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-pago {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-pendente {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-vencido {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-fixo {
+            background: #f3e8ff;
+            color: #6b21a8;
+        }
+
+        .item-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .item-value {
             font-size: 14px;
             font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        }
+
+        .btn-pay {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
         }
 
         .btn-del {
@@ -307,50 +400,138 @@
             padding: 4px;
         }
 
-        /* Backup */
+        /* Backup & Export */
         .backup-bar {
             margin-top: 16px;
-            display: flex;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 8px;
         }
 
         .btn-aux {
-            flex: 1;
             padding: 10px;
-            background: #e2e8f0;
+            background: var(--border);
             border: none;
             border-radius: 8px;
             font-size: 12px;
             font-weight: 600;
             color: var(--text-main);
             cursor: pointer;
+            text-align: center;
+        }
+
+        /* Toast Notifications */
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toast {
+            background: #0f172a;
+            color: #fff;
+            padding: 10px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            animation: fadeIn 0.3s, fadeOut 0.3s 2.7s forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeOut {
+            to {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+        }
+
+        /* Lock Screen Overlay */
+        #lock-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
         }
     </style>
 </head>
 
 <body>
 
+    <!-- Lock Screen PIN -->
+    <div id="lock-screen" style="display: none;">
+        <h2>🔒 App Protegido</h2>
+        <p style="font-size: 13px; color: var(--text-muted);">Digite o PIN para acessar</p>
+        <input type="password" id="pin-input" maxlength="4"
+            style="width: 120px; text-align: center; font-size: 24px; padding: 8px; border-radius: 8px; border: 1px solid var(--border);">
+        <button class="btn-submit" style="width: 120px;" onclick="verificarPIN()">Entrar</button>
+    </div>
+
     <div class="container">
+        <div class="top-bar">
+            <button class="btn-icon" onclick="toggleDarkMode()">🌙 Modo Escuro</button>
+            <button class="btn-icon" onclick="solicitarNotificacoes()">🔔 Ativar Alertas</button>
+            <button class="btn-icon" onclick="configurarPIN()">🔑 PIN</button>
+        </div>
+
         <header>
             <div class="header-logo-container">
                 <img src="logo.png" alt="Viny Webdesign Logo" class="brand-logo">
-                <h1>Meu Controle Financeiro</h1>
+                <h1>Meu Controle Financeiro Pro</h1>
             </div>
-            <p>Desenvolvido por Viny Webdesign • Suporte a Cartão de Crédito</p>
+            <p>Desenvolvido por Viny Webdesign • Gestão Financeira Completa</p>
         </header>
 
-        <!-- Painel de Notificação de Parcelas -->
-        <div class="notification-card" id="notification-box" style="display: none;">
-            <div class="icon">💳</div>
-            <div class="info" id="notification-text">
-                Você tem parcelas pendentes para este mês.
+        <!-- Alertas -->
+        <div class="alerts-container">
+            <div class="notification-card vencida" id="alert-vencidas" style="display: none;">
+                <div class="icon">⚠️</div>
+                <div class="info" id="text-vencidas"></div>
+            </div>
+            <div class="notification-card pendente" id="alert-pendentes" style="display: none;">
+                <div class="icon">⏰</div>
+                <div class="info" id="text-pendentes"></div>
             </div>
         </div>
 
-        <!-- Filtro de Mês -->
+        <!-- Filtros e Busca -->
         <div class="filter-card">
-            <label for="filtro-mes">Mês de Referência</label>
-            <input type="month" id="filtro-mes">
+            <div class="filter-row">
+                <label for="filtro-mes">Mês de Referência</label>
+                <input type="month" id="filtro-mes">
+            </div>
+            <div class="filter-row">
+                <input type="text" id="busca-texto" placeholder="🔎 Buscar por descrição..." style="flex:1;">
+                <select id="filtro-status" style="width: 120px;">
+                    <option value="todos">Todos Status</option>
+                    <option value="Pago">Pago</option>
+                    <option value="Pendente">Pendente</option>
+                    <option value="Vencida">Vencida</option>
+                </select>
+            </div>
         </div>
 
         <!-- Dashboard -->
@@ -364,23 +545,40 @@
                 <p id="total-saidas">R$ 0,00</p>
             </div>
             <div class="card saldo">
-                <h3>Saldo</h3>
+                <h3>Saldo Real</h3>
                 <p id="saldo-atual">R$ 0,00</p>
             </div>
         </div>
 
+        <!-- Teto de Gastos (Meta Mensal) -->
+        <div class="section-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>🎯 Teto de Gastos Mensal</h2>
+                <button class="btn-icon" onclick="definirMeta()">Definir Meta</button>
+            </div>
+            <div class="budget-progress-container">
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted);">
+                    <span id="budget-spent">Gasto: R$ 0,00</span>
+                    <span id="budget-target">Meta: R$ 0,00</span>
+                </div>
+                <div class="budget-bar-bg">
+                    <div class="budget-bar-fill" id="budget-fill"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- Gráfico -->
-        <div class="chart-section">
+        <div class="section-card chart-section">
             <canvas id="categoryChart"></canvas>
         </div>
 
         <!-- Formulário -->
-        <div class="form-section">
+        <div class="section-card">
             <h2>Novo Lançamento</h2>
             <form id="finance-form">
                 <div class="form-group">
                     <label for="descricao">Descrição</label>
-                    <input type="text" id="descricao" placeholder="Ex: Supermercado, Compra TV" required>
+                    <input type="text" id="descricao" placeholder="Ex: Conta de Luz, Mercado" required>
                 </div>
 
                 <div class="form-row">
@@ -389,7 +587,7 @@
                         <input type="number" id="valor" step="0.01" placeholder="0,00" required>
                     </div>
                     <div class="form-group" style="flex:1;">
-                        <label for="data">Data de Vencimento/Compra</label>
+                        <label for="data">Vencimento / Data</label>
                         <input type="date" id="data" required>
                     </div>
                 </div>
@@ -403,15 +601,22 @@
                         </select>
                     </div>
                     <div class="form-group" style="flex:1;">
-                        <label for="pagamento">Forma de Pagamento</label>
-                        <select id="pagamento" required onchange="toggleParcelas()">
-                            <option value="A Vista">À Vista / Pix / Dinheiro</option>
-                            <option value="Cartão de Crédito">Cartão de Crédito</option>
+                        <label for="status">Status</label>
+                        <select id="status" required>
+                            <option value="Pago">Pago / Recebido</option>
+                            <option value="Pendente">Pendente (A Pagar)</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="form-row">
+                    <div class="form-group" style="flex:1;">
+                        <label for="pagamento">Forma de Pagamento</label>
+                        <select id="pagamento" required onchange="toggleParcelas()">
+                            <option value="A Vista">À Vista / Pix / Boleto</option>
+                            <option value="Cartão de Crédito">Cartão de Crédito</option>
+                        </select>
+                    </div>
                     <div class="form-group" style="flex:1;">
                         <label for="categoria">Categoria</label>
                         <select id="categoria" required>
@@ -424,10 +629,20 @@
                             <option value="Outros">Outros</option>
                         </select>
                     </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group" style="flex:1;">
+                        <label for="recorrencia">Frequência</label>
+                        <select id="recorrencia">
+                            <option value="unica">Única</option>
+                            <option value="fixa">Fixa Mensal (Recorrente)</option>
+                        </select>
+                    </div>
                     <div class="form-group" id="group-parcelas" style="flex:1; display:none;">
-                        <label for="parcelas">Nº de Parcelas</label>
+                        <label for="parcelas">Nº Parcelas</label>
                         <select id="parcelas">
-                            <option value="1">1x (À vista no cartão)</option>
+                            <option value="1">1x</option>
                             <option value="2">2x</option>
                             <option value="3">3x</option>
                             <option value="4">4x</option>
@@ -444,121 +659,193 @@
         </div>
 
         <!-- Histórico -->
-        <div class="list-section">
-            <h2>Histórico do Mês</h2>
+        <div class="section-card">
+            <h2>Histórico de Lançamentos</h2>
             <div id="transaction-list"></div>
         </div>
 
-        <!-- Backup -->
+        <!-- Exportação e Backup -->
         <div class="backup-bar">
-            <button class="btn-aux" onclick="exportarBackup()">💾 Exportar Backup</button>
-            <button class="btn-aux" onclick="document.getElementById('file-input').click()">📂 Importar Backup</button>
+            <button class="btn-aux" onclick="exportarPDF()">📄 Relatório PDF</button>
+            <button class="btn-aux" onclick="exportarCSV()">📊 Exportar CSV</button>
+            <button class="btn-aux" onclick="exportarBackup()">💾 Backup JSON</button>
+            <button class="btn-aux" onclick="document.getElementById('file-input').click()">📂 Restaurar</button>
             <input type="file" id="file-input" style="display: none;" onchange="importarBackup(event)">
         </div>
     </div>
 
+    <div id="toast-container"></div>
+
     <script>
-        // Configurar Banco de Dados IndexedDB
+        // Configuração Dexie DB (Versão 4 com Suporte a Recorrência e PIN)
         const db = new Dexie("FinanceAppDB");
-        db.version(2).stores({
-            transacoes: '++id, descricao, valor, data, tipo, categoria, pagamento, parcelaAtual, totalParcelas, compraGrupoId'
+        db.version(4).stores({
+            transacoes: '++id, descricao, valor, data, tipo, categoria, pagamento, parcelaAtual, totalParcelas, compraGrupoId, status, recorrente',
+            configs: 'chave, valor'
         });
 
         let chartInstance = null;
-        const hoje = new Date();
-        document.getElementById('data').value = hoje.toISOString().split('T')[0];
-
-        const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+        const hojeStr = new Date().toISOString().split('T')[0];
+        document.getElementById('data').value = hojeStr;
+        const mesAtual = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
         const filtroMesInput = document.getElementById('filtro-mes');
         filtroMesInput.value = mesAtual;
 
+        // --- MODO ESCURO ---
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('darkMode', isDark);
+        }
+        if (localStorage.getItem('darkMode') === 'true') document.body.classList.add('dark-mode');
+
+        // --- PROTEÇÃO POR PIN ---
+        async function checarPIN() {
+            const pinConfig = await db.configs.get('user_pin');
+            if (pinConfig && pinConfig.valor) {
+                document.getElementById('lock-screen').style.display = 'flex';
+            }
+        }
+        async function verificarPIN() {
+            const input = document.getElementById('pin-input').value;
+            const pinConfig = await db.configs.get('user_pin');
+            if (pinConfig && pinConfig.valor === input) {
+                document.getElementById('lock-screen').style.display = 'none';
+                showToast("Acesso liberado!");
+            } else {
+                showToast("PIN Incorreto!");
+            }
+        }
+        async function configurarPIN() {
+            const novoPin = prompt("Digite um PIN de 4 dígitos (ou deixe em branco para remover):");
+            if (novoPin !== null) {
+                await db.configs.put({ chave: 'user_pin', valor: novoPin.trim() });
+                showToast(novoPin ? "PIN configurado!" : "PIN removido!");
+            }
+        }
+
+        // --- TOAST NOTIFICATIONS ---
+        function showToast(mensagem) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerText = mensagem;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // --- NOTIFICAÇÕES PUSH ---
+        function solicitarNotificacoes() {
+            if ('Notification' in window) {
+                Notification.requestPermission().then(perm => {
+                    if (perm === 'granted') showToast("Notificações ativadas com sucesso!");
+                    else showToast("Permissão de notificação negada.");
+                });
+            }
+        }
+
+        function dispararNotificacaoLocal(titulo, corpo) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(titulo, { body: corpo, icon: 'logo.png' });
+            }
+        }
+
+        // --- INTERFACE E CÁLCULOS ---
         function toggleParcelas() {
             const pagamento = document.getElementById('pagamento').value;
-            const groupParcelas = document.getElementById('group-parcelas');
-            groupParcelas.style.display = pagamento === 'Cartão de Crédito' ? 'block' : 'none';
+            document.getElementById('group-parcelas').style.display = pagamento === 'Cartão de Crédito' ? 'block' : 'none';
         }
 
-        function formatarMoeda(valor) {
-            return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        function formatarMoeda(v) { return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+        function formatarDataBR(d) { const [y, m, day] = d.split('-'); return `${day}/${m}/${y}`; }
+
+        async function definirMeta() {
+            const metaAtual = await db.configs.get('meta_mensal');
+            const valor = prompt("Defina seu teto de gastos mensal (R$):", metaAtual ? metaAtual.valor : "2000");
+            if (valor) {
+                await db.configs.put({ chave: 'meta_mensal', valor: parseFloat(valor) });
+                carregarDados();
+            }
         }
 
-        function formatarDataBR(dataStr) {
-            const [ano, mes, dia] = dataStr.split('-');
-            return `${dia}/${mes}/${ano}`;
-        }
+        // --- PROCESSAR RECORRÊNCIA AUTOMÁTICA ---
+        async function processarContasFixas() {
+            const todas = await db.transacoes.toArray();
+            const fixas = todas.filter(t => t.recorrente === 'fixa');
 
-        function atualizarGrafico(transacoesMes) {
-            const despesas = transacoesMes.filter(t => t.tipo === 'saida');
-            const categoriasMap = {};
+            for (let item of fixas) {
+                const dataItem = new Date(item.data + 'T00:00:00');
+                const dataProxima = new Date(dataItem);
+                dataProxima.setMonth(dataProxima.getMonth() + 1);
+                const proximaStr = dataProxima.toISOString().split('T')[0];
 
-            despesas.forEach(t => {
-                categoriasMap[t.categoria] = (categoriasMap[t.categoria] || 0) + t.valor;
-            });
-
-            const labels = Object.keys(categoriasMap);
-            const dataValues = Object.values(categoriasMap);
-            const ctx = document.getElementById('categoryChart').getContext('2d');
-
-            if (chartInstance) chartInstance.destroy();
-            if (labels.length === 0) return;
-
-            chartInstance = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: dataValues,
-                        backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#64748b']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } }
-                    }
+                // Se ainda não existe lançamento no mês seguinte, gera automaticamente
+                const jaExiste = todas.some(t => t.descricao === item.descricao && t.data === proximaStr);
+                if (!jaExiste && proximaStr <= hojeStr) {
+                    await db.transacoes.add({
+                        ...item,
+                        id: undefined,
+                        data: proximaStr,
+                        status: 'Pendente'
+                    });
                 }
-            });
+            }
         }
 
         async function carregarDados() {
+            await processarContasFixas();
             const mesAno = filtroMesInput.value;
+            const buscaTexto = document.getElementById('busca-texto').value.toLowerCase();
+            const filtroStatus = document.getElementById('filtro-status').value;
+
             const todasTransacoes = await db.transacoes.toArray();
-            const filtradas = todasTransacoes.filter(t => t.data && t.data.startsWith(mesAno));
 
-            const parcelasCartaoMes = filtradas.filter(t => t.pagamento === 'Cartão de Crédito');
-            const notifBox = document.getElementById('notification-box');
-            const notifText = document.getElementById('notification-text');
+            // 1. Alertas de Vencidas Gerais
+            const vencidasGeral = todasTransacoes.filter(t => t.tipo === 'saida' && t.status === 'Pendente' && t.data < hojeStr);
+            const alertVencidas = document.getElementById('alert-vencidas');
+            if (vencidasGeral.length > 0) {
+                const tot = vencidasGeral.reduce((a, c) => a + c.valor, 0);
+                document.getElementById('text-vencidas').innerHTML = `<strong>Atenção:</strong> ${vencidasGeral.length} conta(s) VENCIDA(S) (${formatarMoeda(tot)})`;
+                alertVencidas.style.display = 'flex';
+                dispararNotificacaoLocal("Contas Vencidas!", `Você tem ${vencidasGeral.length} conta(s) pendente(s) atrasada(s).`);
+            } else { alertVencidas.style.display = 'none'; }
 
-            if (parcelasCartaoMes.length > 0) {
-                const valorTotalCartao = parcelasCartaoMes.reduce((acc, curr) => acc + curr.valor, 0);
-                notifText.innerHTML = `Neste mês você tem <strong>${parcelasCartaoMes.length} item(s) no Cartão de Crédito</strong> totalizando <strong>${formatarMoeda(valorTotalCartao)}</strong>.`;
-                notifBox.style.display = 'flex';
-            } else {
-                notifBox.style.display = 'none';
+            // 2. Transações Filtradas do Mês
+            let filtradas = todasTransacoes.filter(t => t.data && t.data.startsWith(mesAno));
+
+            if (buscaTexto) filtradas = filtradas.filter(t => t.descricao.toLowerCase().includes(buscaTexto));
+            if (filtroStatus !== 'todos') {
+                if (filtroStatus === 'Vencida') filtradas = filtradas.filter(t => t.status === 'Pendente' && t.data < hojeStr);
+                else filtradas = filtradas.filter(t => t.status === filtroStatus);
             }
 
-            let entradas = 0;
-            let saidas = 0;
-
-            filtradas.forEach(t => {
-                if (t.tipo === 'entrada') entradas += t.valor;
-                else saidas += t.valor;
-            });
+            let entradas = 0, saidas = 0;
+            filtradas.forEach(t => { if (t.tipo === 'entrada') entradas += t.valor; else saidas += t.valor; });
 
             document.getElementById('total-entradas').innerText = formatarMoeda(entradas);
             document.getElementById('total-saidas').innerText = formatarMoeda(saidas);
-
             const saldo = entradas - saidas;
             const elSaldo = document.getElementById('saldo-atual');
             elSaldo.innerText = formatarMoeda(saldo);
-            elSaldo.style.color = saldo < 0 ? '#ef4444' : '#0f172a';
+            elSaldo.style.color = saldo < 0 ? 'var(--danger)' : 'var(--text-main)';
 
+            // 3. Teto de Gastos / Meta
+            const metaConfig = await db.configs.get('meta_mensal');
+            const metaValor = metaConfig ? metaConfig.valor : 0;
+            document.getElementById('budget-spent').innerText = `Gasto: ${formatarMoeda(saidas)}`;
+            document.getElementById('budget-target').innerText = `Meta: ${formatarMoeda(metaValor)}`;
+
+            const pct = metaValor > 0 ? Math.min((saidas / metaValor) * 100, 100) : 0;
+            const fill = document.getElementById('budget-fill');
+            fill.style.width = pct + '%';
+            fill.style.backgroundColor = pct >= 100 ? 'var(--danger)' : (pct > 80 ? 'var(--warning)' : 'var(--primary)');
+
+            // 4. Renderizar Lista
             const listEl = document.getElementById('transaction-list');
             listEl.innerHTML = '';
 
             if (filtradas.length === 0) {
-                listEl.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:10px 0; font-size:13px;">Sem lançamentos no período.</p>`;
+                listEl.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:10px 0; font-size:13px;">Nenhum lançamento encontrado.</p>`;
             } else {
                 filtradas.sort((a, b) => new Date(b.data) - new Date(a.data));
                 filtradas.forEach(t => {
@@ -567,17 +854,22 @@
                     const cor = t.tipo === 'entrada' ? 'var(--primary)' : 'var(--danger)';
                     const sinal = t.tipo === 'entrada' ? '+' : '-';
 
-                    const infoParcela = (t.pagamento === 'Cartão de Crédito' && t.totalParcelas > 1)
-                        ? `<span class="badge-card">${t.parcelaAtual}/${t.totalParcelas}x Cartão</span>`
-                        : (t.pagamento === 'Cartão de Crédito' ? `<span class="badge-card">Cartão</span>` : '');
+                    let badgeStatus = t.status === 'Pago' || t.tipo === 'entrada'
+                        ? `<span class="badge badge-pago">Pago</span>`
+                        : (t.data < hojeStr ? `<span class="badge badge-vencido">Vencida</span>` : `<span class="badge badge-pendente">A Pagar</span>`);
+
+                    const badgeFixo = t.recorrente === 'fixa' ? `<span class="badge badge-fixo">Fixa</span>` : '';
+                    const infoParc = (t.pagamento === 'Cartão de Crédito' && t.totalParcelas > 1) ? `<span class="badge badge-card">${t.parcelaAtual}/${t.totalParcelas}x</span>` : '';
+                    const btnPagar = (t.status === 'Pendente' && t.tipo === 'saida') ? `<button class="btn-pay" onclick="marcarComoPago(${t.id})">✓ Pagar</button>` : '';
 
                     item.innerHTML = `
                     <div class="item-info">
-                        <span class="item-title">${t.descricao} ${infoParcela}</span>
-                        <span class="item-sub">${formatarDataBR(t.data)} • ${t.categoria}</span>
+                        <span class="item-title">${t.descricao} ${badgeStatus} ${badgeFixo} ${infoParc}</span>
+                        <span class="item-sub">${formatarDataBR(t.data)} • ${t.categoria} (${t.pagamento})</span>
                     </div>
-                    <div class="item-value" style="color:${cor};">
-                        ${sinal} ${formatarMoeda(t.valor)}
+                    <div class="item-actions">
+                        <span class="item-value" style="color:${cor};">${sinal} ${formatarMoeda(t.valor)}</span>
+                        ${btnPagar}
                         <button class="btn-del" onclick="deletarRegistro(${t.id})">✕</button>
                     </div>
                 `;
@@ -588,93 +880,141 @@
             atualizarGrafico(filtradas);
         }
 
+        function atualizarGrafico(transacoes) {
+            const despesas = transacoes.filter(t => t.tipo === 'saida');
+            const catMap = {};
+            despesas.forEach(t => catMap[t.categoria] = (catMap[t.categoria] || 0) + t.valor);
+
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+            if (Object.keys(catMap).length === 0) return;
+
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(catMap),
+                    datasets: [{ data: Object.values(catMap), backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#64748b'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } } } }
+            });
+        }
+
         document.getElementById('finance-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-
             const desc = document.getElementById('descricao').value;
             const valorTotal = parseFloat(document.getElementById('valor').value);
             const dataBase = new Date(document.getElementById('data').value + 'T00:00:00');
             const tipo = document.getElementById('tipo').value;
+            const status = document.getElementById('status').value;
             const pagamento = document.getElementById('pagamento').value;
             const categoria = document.getElementById('categoria').value;
+            const recorrencia = document.getElementById('recorrencia').value;
 
-            let numParcelas = 1;
-            if (pagamento === 'Cartão de Crédito') {
-                numParcelas = parseInt(document.getElementById('parcelas').value) || 1;
-            }
-
-            const valorParcela = parseFloat((valorTotal / numParcelas).toFixed(2));
+            let numParc = pagamento === 'Cartão de Crédito' ? (parseInt(document.getElementById('parcelas').value) || 1) : 1;
+            const valParc = parseFloat((valorTotal / numParc).toFixed(2));
             const grupoId = Date.now();
 
-            for (let i = 0; i < numParcelas; i++) {
-                const dataParcela = new Date(dataBase);
-                dataParcela.setMonth(dataParcela.getMonth() + i);
-
-                const dataStr = dataParcela.toISOString().split('T')[0];
-
+            for (let i = 0; i < numParc; i++) {
+                const d = new Date(dataBase);
+                d.setMonth(d.getMonth() + i);
                 await db.transacoes.add({
-                    descricao: desc,
-                    valor: valorParcela,
-                    data: dataStr,
-                    tipo: tipo,
-                    categoria: categoria,
-                    pagamento: pagamento,
-                    parcelaAtual: i + 1,
-                    totalParcelas: numParcelas,
-                    compraGrupoId: grupoId
+                    descricao: desc, valor: valParc, data: d.toISOString().split('T')[0],
+                    tipo, status, categoria, pagamento, parcelaAtual: i + 1, totalParcelas: numParc, compraGrupoId: grupoId, recorrente: recorrencia
                 });
             }
 
             document.getElementById('descricao').value = '';
             document.getElementById('valor').value = '';
-
-            filtroMesInput.value = document.getElementById('data').value.substring(0, 7);
+            showToast("Lançamento salvo com sucesso!");
             carregarDados();
         });
 
-        filtroMesInput.addEventListener('change', carregarDados);
+        document.getElementById('filtro-mes').addEventListener('change', carregarDados);
+        document.getElementById('busca-texto').addEventListener('input', carregarDados);
+        document.getElementById('filtro-status').addEventListener('change', carregarDados);
+
+        async function marcarComoPago(id) {
+            await db.transacoes.update(id, { status: 'Pago' });
+            showToast("Conta marcada como Paga!");
+            carregarDados();
+        }
 
         async function deletarRegistro(id) {
-            if (confirm("Deseja apagar esta parcela do banco de dados?")) {
+            if (confirm("Excluir este lançamento?")) {
                 await db.transacoes.delete(id);
+                showToast("Registro excluído.");
                 carregarDados();
             }
         }
 
-        async function exportarBackup() {
-            const todos = await db.transacoes.toArray();
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(todos));
-            const anchor = document.createElement('a');
-            anchor.setAttribute("href", dataStr);
-            anchor.setAttribute("download", `backup_financas_${new Date().toISOString().split('T')[0]}.json`);
-            anchor.click();
+        // --- EXPORTAÇÕES ---
+        async function exportarCSV() {
+            const dados = await db.transacoes.toArray();
+            let csv = "ID,Descricao,Valor,Data,Tipo,Status,Categoria,Pagamento\n";
+            dados.forEach(d => {
+                csv += `${d.id},"${d.descricao}",${d.valor},${d.data},${d.tipo},${d.status},${d.categoria},${d.pagamento}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `relatorio_financeiro_${filtroMesInput.value}.csv`;
+            link.click();
+            showToast("CSV exportado!");
         }
 
-        function importarBackup(event) {
+        async function exportarPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const dados = await db.transacoes.toArray();
+            const filtrados = dados.filter(t => t.data.startsWith(filtroMesInput.value));
+
+            doc.setFontSize(16);
+            doc.text(`Relatorio Financeiro - ${filtroMesInput.value}`, 14, 20);
+            doc.setFontSize(10);
+
+            let y = 30;
+            filtrados.forEach((t, i) => {
+                doc.text(`${t.data} - ${t.descricao} (${t.categoria}): R$ ${t.valor.toFixed(2)} [${t.status}]`, 14, y);
+                y += 8;
+                if (y > 280) { doc.addPage(); y = 20; }
+            });
+
+            doc.save(`Relatorio_${filtroMesInput.value}.pdf`);
+            showToast("PDF gerado com sucesso!");
+        }
+
+        async function exportarBackup() {
+            const todos = await db.transacoes.toArray();
+            const blob = new Blob([JSON.stringify(todos)], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `backup_financas.json`;
+            link.click();
+        }
+
+        function importarBackup(e) {
             const reader = new FileReader();
-            reader.onload = async function (e) {
+            reader.onload = async function (evt) {
                 try {
-                    const dados = JSON.parse(e.target.result);
+                    const dados = JSON.parse(evt.target.result);
                     if (Array.isArray(dados)) {
                         await db.transacoes.clear();
                         await db.transacoes.bulkAdd(dados);
                         carregarDados();
-                        alert("Dados restaurados com sucesso!");
+                        showToast("Backup restaurado!");
                     }
-                } catch (err) {
-                    alert("Erro ao importar arquivo de backup.");
-                }
+                } catch (err) { showToast("Erro ao importar backup."); }
             };
-            reader.readAsText(event.target.files[0]);
+            reader.readAsText(e.target.files[0]);
         }
 
-        carregarDados();
-    </script>
-    <script>
+        // Registrar Service Worker PWA
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js')
-                .catch(err => console.log('Erro no Service Worker:', err));
+            navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW Error:', err));
         }
+
+        checarPIN();
+        carregarDados();
     </script>
 </body>
 
