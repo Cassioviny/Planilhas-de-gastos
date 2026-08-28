@@ -4,16 +4,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Meu Controle Financeiro</title>
-    <!-- Dexie.js (Banco de dados IndexedDB simples) -->
+    <title>Meu Controle Financeiro - Viny Webdesign</title>
+
+    <!-- Favicon -->
+    <link rel="icon" href="logo.png" type="image/png">
+
+    <!-- Banco de Dados IndexedDB via Dexie.js -->
     <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
-    <!-- Chart.js para Gráficos Visuais -->
+
+    <!-- Biblioteca para Gráficos (Chart.js) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
         :root {
             --primary: #10b981;
             --primary-dark: #059669;
             --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #3b82f6;
             --bg: #f8fafc;
             --card-bg: #ffffff;
             --text-main: #0f172a;
@@ -41,25 +49,68 @@
             margin: 0 auto;
         }
 
-        /* Header App Style */
+        /* Header e Logo Ajustados */
         header {
             background: linear-gradient(135deg, #1e293b, #0f172a);
             color: white;
-            padding: 20px;
+            padding: 16px;
             border-radius: 16px;
             margin-bottom: 16px;
+            text-align: center;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         }
 
+        .header-logo-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+
+        /* LOGO COM TAMANHO REDUZIDO (140px) */
+        .brand-logo {
+            max-width: 140px;
+            height: auto;
+            object-fit: contain;
+            filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.4));
+        }
+
         header h1 {
-            font-size: 20px;
+            font-size: 17px;
             font-weight: 700;
         }
 
         header p {
-            font-size: 12px;
+            font-size: 11px;
             color: #94a3b8;
             margin-top: 2px;
+        }
+
+        /* Painel de Notificação de Parcelas */
+        .notification-card {
+            background: #fffbe0;
+            border: 1px solid var(--warning);
+            border-radius: 12px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .notification-card .icon {
+            font-size: 20px;
+        }
+
+        .notification-card .info {
+            font-size: 13px;
+            color: #78350f;
+        }
+
+        .notification-card .info strong {
+            font-weight: 700;
         }
 
         /* Filtro de Mês */
@@ -124,7 +175,7 @@
             color: var(--danger);
         }
 
-        /* Seção Gráfico */
+        /* Gráfico */
         .chart-section {
             background: var(--card-bg);
             padding: 16px;
@@ -133,12 +184,13 @@
             border: 1px solid var(--border);
             max-height: 250px;
             display: flex;
-            flex-direction: column;
+            justify-content: center;
             align-items: center;
         }
 
-        /* Formulário Novo Lançamento */
-        .form-section {
+        /* Form e Seções */
+        .form-section,
+        .list-section {
             background: var(--card-bg);
             padding: 16px;
             border-radius: 16px;
@@ -199,13 +251,6 @@
         }
 
         /* Lista de Lançamentos */
-        .list-section {
-            background: var(--card-bg);
-            padding: 16px;
-            border-radius: 16px;
-            border: 1px solid var(--border);
-        }
-
         .item {
             display: flex;
             justify-content: space-between;
@@ -234,6 +279,15 @@
             color: var(--text-muted);
         }
 
+        .badge-card {
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
         .item-value {
             font-size: 14px;
             font-weight: 700;
@@ -252,7 +306,7 @@
             padding: 4px;
         }
 
-        /* Rodapé com Backup */
+        /* Backup */
         .backup-bar {
             margin-top: 16px;
             display: flex;
@@ -277,17 +331,28 @@
 
     <div class="container">
         <header>
-            <h1>Meu Controle Financeiro</h1>
-            <p>Banco de Dados Local • Alta Segurança</p>
+            <div class="header-logo-container">
+                <img src="logo.png" alt="Viny Webdesign Logo" class="brand-logo">
+                <h1>Meu Controle Financeiro</h1>
+            </div>
+            <p>Desenvolvido por Viny Webdesign • Suporte a Cartão de Crédito</p>
         </header>
 
-        <!-- Filtro -->
+        <!-- Painel de Notificação de Parcelas -->
+        <div class="notification-card" id="notification-box" style="display: none;">
+            <div class="icon">💳</div>
+            <div class="info" id="notification-text">
+                Você tem parcelas pendentes para este mês.
+            </div>
+        </div>
+
+        <!-- Filtro de Mês -->
         <div class="filter-card">
             <label for="filtro-mes">Mês de Referência</label>
             <input type="month" id="filtro-mes">
         </div>
 
-        <!-- Resumo dos Saldos -->
+        <!-- Dashboard -->
         <div class="dashboard">
             <div class="card receitas">
                 <h3>Entradas</h3>
@@ -303,41 +368,51 @@
             </div>
         </div>
 
-        <!-- Gráfico de Gastos por Categoria -->
+        <!-- Gráfico -->
         <div class="chart-section">
             <canvas id="categoryChart"></canvas>
         </div>
 
-        <!-- Form -->
+        <!-- Formulário -->
         <div class="form-section">
             <h2>Novo Lançamento</h2>
             <form id="finance-form">
                 <div class="form-group">
-                    <label>Descrição</label>
-                    <input type="text" id="descricao" placeholder="Ex: Supermercado, Pix" required>
+                    <label for="descricao">Descrição</label>
+                    <input type="text" id="descricao" placeholder="Ex: Supermercado, Compra TV" required>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group" style="flex:1;">
-                        <label>Valor (R$)</label>
+                        <label for="valor">Valor Total (R$)</label>
                         <input type="number" id="valor" step="0.01" placeholder="0,00" required>
                     </div>
                     <div class="form-group" style="flex:1;">
-                        <label>Data</label>
+                        <label for="data">Data de Vencimento/Compra</label>
                         <input type="date" id="data" required>
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group" style="flex:1;">
-                        <label>Tipo</label>
+                        <label for="tipo">Tipo</label>
                         <select id="tipo" required>
-                            <option value="saida">Saída</option>
-                            <option value="entrada">Entrada</option>
+                            <option value="saida">Saída (Despesa)</option>
+                            <option value="entrada">Entrada (Receita)</option>
                         </select>
                     </div>
                     <div class="form-group" style="flex:1;">
-                        <label>Categoria</label>
+                        <label for="pagamento">Forma de Pagamento</label>
+                        <select id="pagamento" required onchange="toggleParcelas()">
+                            <option value="A Vista">À Vista / Pix / Dinheiro</option>
+                            <option value="Cartão de Crédito">Cartão de Crédito</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group" style="flex:1;">
+                        <label for="categoria">Categoria</label>
                         <select id="categoria" required>
                             <option value="Alimentação">Alimentação</option>
                             <option value="Moradia">Moradia</option>
@@ -348,34 +423,46 @@
                             <option value="Outros">Outros</option>
                         </select>
                     </div>
+                    <div class="form-group" id="group-parcelas" style="flex:1; display:none;">
+                        <label for="parcelas">Nº de Parcelas</label>
+                        <select id="parcelas">
+                            <option value="1">1x (À vista no cartão)</option>
+                            <option value="2">2x</option>
+                            <option value="3">3x</option>
+                            <option value="4">4x</option>
+                            <option value="5">5x</option>
+                            <option value="6">6x</option>
+                            <option value="10">10x</option>
+                            <option value="12">12x</option>
+                        </select>
+                    </div>
                 </div>
 
                 <button type="submit" class="btn-submit">Salvar Registro</button>
             </form>
         </div>
 
-        <!-- Lista de Lançamentos -->
+        <!-- Histórico -->
         <div class="list-section">
             <h2>Histórico do Mês</h2>
             <div id="transaction-list"></div>
         </div>
 
-        <!-- Ferramentas de Backup -->
+        <!-- Backup -->
         <div class="backup-bar">
-            <button class="btn-aux" onclick="exportarBackup()">💾 Exportar Banco</button>
-            <button class="btn-aux" onclick="document.getElementById('file-input').click()">📂 Importar Banco</button>
+            <button class="btn-aux" onclick="exportarBackup()">💾 Exportar Backup</button>
+            <button class="btn-aux" onclick="document.getElementById('file-input').click()">📂 Importar Backup</button>
             <input type="file" id="file-input" style="display: none;" onchange="importarBackup(event)">
         </div>
     </div>
 
     <script>
-        // 1. Configurar Banco de Dados IndexedDB via Dexie.js
+        // Configurar Banco de Dados IndexedDB
         const db = new Dexie("FinanceAppDB");
-        db.version(1).stores({
-            transacoes: '++id, descricao, valor, data, tipo, categoria'
+        db.version(2).stores({
+            transacoes: '++id, descricao, valor, data, tipo, categoria, pagamento, parcelaAtual, totalParcelas, compraGrupoId'
         });
 
-        // 2. Variáveis de Controle
         let chartInstance = null;
         const hoje = new Date();
         document.getElementById('data').value = hoje.toISOString().split('T')[0];
@@ -384,7 +471,12 @@
         const filtroMesInput = document.getElementById('filtro-mes');
         filtroMesInput.value = mesAtual;
 
-        // 3. Utilitários
+        function toggleParcelas() {
+            const pagamento = document.getElementById('pagamento').value;
+            const groupParcelas = document.getElementById('group-parcelas');
+            groupParcelas.style.display = pagamento === 'Cartão de Crédito' ? 'block' : 'none';
+        }
+
         function formatarMoeda(valor) {
             return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         }
@@ -394,7 +486,6 @@
             return `${dia}/${mes}/${ano}`;
         }
 
-        // 4. Renderizar Gráfico de Pizza/Donut por Categorias de Saída
         function atualizarGrafico(transacoesMes) {
             const despesas = transacoesMes.filter(t => t.tipo === 'saida');
             const categoriasMap = {};
@@ -405,14 +496,10 @@
 
             const labels = Object.keys(categoriasMap);
             const dataValues = Object.values(categoriasMap);
-
             const ctx = document.getElementById('categoryChart').getContext('2d');
 
             if (chartInstance) chartInstance.destroy();
-
-            if (labels.length === 0) {
-                return;
-            }
+            if (labels.length === 0) return;
 
             chartInstance = new Chart(ctx, {
                 type: 'doughnut',
@@ -427,19 +514,28 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } }
+                        legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } }
                     }
                 }
             });
         }
 
-        // 5. Atualizar Dados da Tela buscando do IndexedDB
         async function carregarDados() {
             const mesAno = filtroMesInput.value;
-
-            // Query no banco IndexedDB
             const todasTransacoes = await db.transacoes.toArray();
             const filtradas = todasTransacoes.filter(t => t.data && t.data.startsWith(mesAno));
+
+            const parcelasCartaoMes = filtradas.filter(t => t.pagamento === 'Cartão de Crédito');
+            const notifBox = document.getElementById('notification-box');
+            const notifText = document.getElementById('notification-text');
+
+            if (parcelasCartaoMes.length > 0) {
+                const valorTotalCartao = parcelasCartaoMes.reduce((acc, curr) => acc + curr.valor, 0);
+                notifText.innerHTML = `Neste mês você tem <strong>${parcelasCartaoMes.length} item(s) no Cartão de Crédito</strong> totalizando <strong>${formatarMoeda(valorTotalCartao)}</strong>.`;
+                notifBox.style.display = 'flex';
+            } else {
+                notifBox.style.display = 'none';
+            }
 
             let entradas = 0;
             let saidas = 0;
@@ -449,7 +545,6 @@
                 else saidas += t.valor;
             });
 
-            // Dashboard
             document.getElementById('total-entradas').innerText = formatarMoeda(entradas);
             document.getElementById('total-saidas').innerText = formatarMoeda(saidas);
 
@@ -458,12 +553,11 @@
             elSaldo.innerText = formatarMoeda(saldo);
             elSaldo.style.color = saldo < 0 ? '#ef4444' : '#0f172a';
 
-            // Render Lista
             const listEl = document.getElementById('transaction-list');
             listEl.innerHTML = '';
 
             if (filtradas.length === 0) {
-                listEl.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:10px 0; font-size:13px;">Sem lançamentos neste mês.</p>`;
+                listEl.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:10px 0; font-size:13px;">Sem lançamentos no período.</p>`;
             } else {
                 filtradas.sort((a, b) => new Date(b.data) - new Date(a.data));
                 filtradas.forEach(t => {
@@ -472,9 +566,13 @@
                     const cor = t.tipo === 'entrada' ? 'var(--primary)' : 'var(--danger)';
                     const sinal = t.tipo === 'entrada' ? '+' : '-';
 
+                    const infoParcela = (t.pagamento === 'Cartão de Crédito' && t.totalParcelas > 1)
+                        ? `<span class="badge-card">${t.parcelaAtual}/${t.totalParcelas}x Cartão</span>`
+                        : (t.pagamento === 'Cartão de Crédito' ? `<span class="badge-card">Cartão</span>` : '');
+
                     item.innerHTML = `
                     <div class="item-info">
-                        <span class="item-title">${t.descricao}</span>
+                        <span class="item-title">${t.descricao} ${infoParcela}</span>
                         <span class="item-sub">${formatarDataBR(t.data)} • ${t.categoria}</span>
                     </div>
                     <div class="item-value" style="color:${cor};">
@@ -489,47 +587,66 @@
             atualizarGrafico(filtradas);
         }
 
-        // 6. Adicionar Eventos
         document.getElementById('finance-form').addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const novaTransacao = {
-                descricao: document.getElementById('descricao').value,
-                valor: parseFloat(document.getElementById('valor').value),
-                data: document.getElementById('data').value,
-                tipo: document.getElementById('tipo').value,
-                categoria: document.getElementById('categoria').value
-            };
+            const desc = document.getElementById('descricao').value;
+            const valorTotal = parseFloat(document.getElementById('valor').value);
+            const dataBase = new Date(document.getElementById('data').value + 'T00:00:00');
+            const tipo = document.getElementById('tipo').value;
+            const pagamento = document.getElementById('pagamento').value;
+            const categoria = document.getElementById('categoria').value;
 
-            // Salvar no Banco de Dados (IndexedDB)
-            await db.transacoes.add(novaTransacao);
+            let numParcelas = 1;
+            if (pagamento === 'Cartão de Crédito') {
+                numParcelas = parseInt(document.getElementById('parcelas').value) || 1;
+            }
+
+            const valorParcela = parseFloat((valorTotal / numParcelas).toFixed(2));
+            const grupoId = Date.now();
+
+            for (let i = 0; i < numParcelas; i++) {
+                const dataParcela = new Date(dataBase);
+                dataParcela.setMonth(dataParcela.getMonth() + i);
+
+                const dataStr = dataParcela.toISOString().split('T')[0];
+
+                await db.transacoes.add({
+                    descricao: desc,
+                    valor: valorParcela,
+                    data: dataStr,
+                    tipo: tipo,
+                    categoria: categoria,
+                    pagamento: pagamento,
+                    parcelaAtual: i + 1,
+                    totalParcelas: numParcelas,
+                    compraGrupoId: grupoId
+                });
+            }
 
             document.getElementById('descricao').value = '';
             document.getElementById('valor').value = '';
 
-            filtroMesInput.value = novaTransacao.data.substring(0, 7);
+            filtroMesInput.value = document.getElementById('data').value.substring(0, 7);
             carregarDados();
         });
 
         filtroMesInput.addEventListener('change', carregarDados);
 
         async function deletarRegistro(id) {
-            if (confirm("Apagar esta transação do banco de dados?")) {
+            if (confirm("Deseja apagar esta parcela do banco de dados?")) {
                 await db.transacoes.delete(id);
                 carregarDados();
             }
         }
 
-        // 7. Funções de Backup
         async function exportarBackup() {
             const todos = await db.transacoes.toArray();
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(todos));
             const anchor = document.createElement('a');
             anchor.setAttribute("href", dataStr);
             anchor.setAttribute("download", `backup_financas_${new Date().toISOString().split('T')[0]}.json`);
-            document.body.appendChild(anchor);
             anchor.click();
-            anchor.remove();
         }
 
         function importarBackup(event) {
@@ -541,16 +658,15 @@
                         await db.transacoes.clear();
                         await db.transacoes.bulkAdd(dados);
                         carregarDados();
-                        alert("Banco de dados restaurado com sucesso!");
+                        alert("Dados restaurados com sucesso!");
                     }
                 } catch (err) {
-                    alert("Erro ao ler arquivo de backup.");
+                    alert("Erro ao importar arquivo de backup.");
                 }
             };
             reader.readAsText(event.target.files[0]);
         }
 
-        // Inicialização
         carregarDados();
     </script>
 </body>
