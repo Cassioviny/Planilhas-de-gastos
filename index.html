@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Meu Controle Financeiro</title>
+    <!-- Dexie.js (Banco de dados IndexedDB simples) -->
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    <!-- Chart.js para Gráficos Visuais -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #10b981;
+            --primary-dark: #059669;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            padding: 16px;
+            padding-bottom: 80px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Header App Style */
+        header {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            color: white;
+            padding: 20px;
+            border-radius: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        header h1 {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        header p {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+
+        /* Filtro de Mês */
+        .filter-card {
+            background: var(--card-bg);
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid var(--border);
+        }
+
+        .filter-card label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .filter-card input {
+            border: 1px solid var(--border);
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        /* Dashboard Cards */
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 12px 8px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        .card h3 {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .card p {
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .card.receitas p {
+            color: var(--primary);
+        }
+
+        .card.despesas p {
+            color: var(--danger);
+        }
+
+        /* Seção Gráfico */
+        .chart-section {
+            background: var(--card-bg);
+            padding: 16px;
+            border-radius: 16px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border);
+            max-height: 250px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Formulário Novo Lançamento */
+        .form-section {
+            background: var(--card-bg);
+            padding: 16px;
+            border-radius: 16px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border);
+        }
+
+        h2 {
+            font-size: 15px;
+            margin-bottom: 12px;
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--text-muted);
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            font-size: 14px;
+            background: #fff;
+            outline: none;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        button.btn-submit {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 15px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button.btn-submit:active {
+            background: var(--primary-dark);
+        }
+
+        /* Lista de Lançamentos */
+        .list-section {
+            background: var(--card-bg);
+            padding: 16px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+        }
+
+        .item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .item:last-child {
+            border-bottom: none;
+        }
+
+        .item-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .item-title {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .item-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .item-value {
+            font-size: 14px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-del {
+            background: none;
+            border: none;
+            color: var(--danger);
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        /* Rodapé com Backup */
+        .backup-bar {
+            margin-top: 16px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-aux {
+            flex: 1;
+            padding: 10px;
+            background: #e2e8f0;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-main);
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Meu Controle Financeiro</h1>
+            <p>Banco de Dados Local • Alta Segurança</p>
+        </header>
+
+        <!-- Filtro -->
+        <div class="filter-card">
+            <label for="filtro-mes">Mês de Referência</label>
+            <input type="month" id="filtro-mes">
+        </div>
+
+        <!-- Resumo dos Saldos -->
+        <div class="dashboard">
+            <div class="card receitas">
+                <h3>Entradas</h3>
+                <p id="total-entradas">R$ 0,00</p>
+            </div>
+            <div class="card despesas">
+                <h3>Saídas</h3>
+                <p id="total-saidas">R$ 0,00</p>
+            </div>
+            <div class="card saldo">
+                <h3>Saldo</h3>
+                <p id="saldo-atual">R$ 0,00</p>
+            </div>
+        </div>
+
+        <!-- Gráfico de Gastos por Categoria -->
+        <div class="chart-section">
+            <canvas id="categoryChart"></canvas>
+        </div>
+
+        <!-- Form -->
+        <div class="form-section">
+            <h2>Novo Lançamento</h2>
+            <form id="finance-form">
+                <div class="form-group">
+                    <label>Descrição</label>
+                    <input type="text" id="descricao" placeholder="Ex: Supermercado, Pix" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group" style="flex:1;">
+                        <label>Valor (R$)</label>
+                        <input type="number" id="valor" step="0.01" placeholder="0,00" required>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Data</label>
+                        <input type="date" id="data" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group" style="flex:1;">
+                        <label>Tipo</label>
+                        <select id="tipo" required>
+                            <option value="saida">Saída</option>
+                            <option value="entrada">Entrada</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Categoria</label>
+                        <select id="categoria" required>
+                            <option value="Alimentação">Alimentação</option>
+                            <option value="Moradia">Moradia</option>
+                            <option value="Transporte">Transporte</option>
+                            <option value="Lazer">Lazer</option>
+                            <option value="Saúde">Saúde</option>
+                            <option value="Salário/Renda">Salário / Renda</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-submit">Salvar Registro</button>
+            </form>
+        </div>
+
+        <!-- Lista de Lançamentos -->
+        <div class="list-section">
+            <h2>Histórico do Mês</h2>
+            <div id="transaction-list"></div>
+        </div>
+
+        <!-- Ferramentas de Backup -->
+        <div class="backup-bar">
+            <button class="btn-aux" onclick="exportarBackup()">💾 Exportar Banco</button>
+            <button class="btn-aux" onclick="document.getElementById('file-input').click()">📂 Importar Banco</button>
+            <input type="file" id="file-input" style="display: none;" onchange="importarBackup(event)">
+        </div>
+    </div>
+
+    <script>
+        // 1. Configurar Banco de Dados IndexedDB via Dexie.js
+        const db = new Dexie("FinanceAppDB");
+        db.version(1).stores({
+            transacoes: '++id, descricao, valor, data, tipo, categoria'
+        });
+
+        // 2. Variáveis de Controle
+        let chartInstance = null;
+        const hoje = new Date();
+        document.getElementById('data').value = hoje.toISOString().split('T')[0];
+
+        const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+        const filtroMesInput = document.getElementById('filtro-mes');
+        filtroMesInput.value = mesAtual;
+
+        // 3. Utilitários
+        function formatarMoeda(valor) {
+            return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        function formatarDataBR(dataStr) {
+            const [ano, mes, dia] = dataStr.split('-');
+            return `${dia}/${mes}/${ano}`;
+        }
+
+        // 4. Renderizar Gráfico de Pizza/Donut por Categorias de Saída
+        function atualizarGrafico(transacoesMes) {
+            const despesas = transacoesMes.filter(t => t.tipo === 'saida');
+            const categoriasMap = {};
+
+            despesas.forEach(t => {
+                categoriasMap[t.categoria] = (categoriasMap[t.categoria] || 0) + t.valor;
+            });
+
+            const labels = Object.keys(categoriasMap);
+            const dataValues = Object.values(categoriasMap);
+
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+
+            if (chartInstance) chartInstance.destroy();
+
+            if (labels.length === 0) {
+                return;
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: dataValues,
+                        backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#64748b']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        // 5. Atualizar Dados da Tela buscando do IndexedDB
+        async function carregarDados() {
+            const mesAno = filtroMesInput.value;
+
+            // Query no banco IndexedDB
+            const todasTransacoes = await db.transacoes.toArray();
+            const filtradas = todasTransacoes.filter(t => t.data && t.data.startsWith(mesAno));
+
+            let entradas = 0;
+            let saidas = 0;
+
+            filtradas.forEach(t => {
+                if (t.tipo === 'entrada') entradas += t.valor;
+                else saidas += t.valor;
+            });
+
+            // Dashboard
+            document.getElementById('total-entradas').innerText = formatarMoeda(entradas);
+            document.getElementById('total-saidas').innerText = formatarMoeda(saidas);
+
+            const saldo = entradas - saidas;
+            const elSaldo = document.getElementById('saldo-atual');
+            elSaldo.innerText = formatarMoeda(saldo);
+            elSaldo.style.color = saldo < 0 ? '#ef4444' : '#0f172a';
+
+            // Render Lista
+            const listEl = document.getElementById('transaction-list');
+            listEl.innerHTML = '';
+
+            if (filtradas.length === 0) {
+                listEl.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:10px 0; font-size:13px;">Sem lançamentos neste mês.</p>`;
+            } else {
+                filtradas.sort((a, b) => new Date(b.data) - new Date(a.data));
+                filtradas.forEach(t => {
+                    const item = document.createElement('div');
+                    item.className = 'item';
+                    const cor = t.tipo === 'entrada' ? 'var(--primary)' : 'var(--danger)';
+                    const sinal = t.tipo === 'entrada' ? '+' : '-';
+
+                    item.innerHTML = `
+                    <div class="item-info">
+                        <span class="item-title">${t.descricao}</span>
+                        <span class="item-sub">${formatarDataBR(t.data)} • ${t.categoria}</span>
+                    </div>
+                    <div class="item-value" style="color:${cor};">
+                        ${sinal} ${formatarMoeda(t.valor)}
+                        <button class="btn-del" onclick="deletarRegistro(${t.id})">✕</button>
+                    </div>
+                `;
+                    listEl.appendChild(item);
+                });
+            }
+
+            atualizarGrafico(filtradas);
+        }
+
+        // 6. Adicionar Eventos
+        document.getElementById('finance-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const novaTransacao = {
+                descricao: document.getElementById('descricao').value,
+                valor: parseFloat(document.getElementById('valor').value),
+                data: document.getElementById('data').value,
+                tipo: document.getElementById('tipo').value,
+                categoria: document.getElementById('categoria').value
+            };
+
+            // Salvar no Banco de Dados (IndexedDB)
+            await db.transacoes.add(novaTransacao);
+
+            document.getElementById('descricao').value = '';
+            document.getElementById('valor').value = '';
+
+            filtroMesInput.value = novaTransacao.data.substring(0, 7);
+            carregarDados();
+        });
+
+        filtroMesInput.addEventListener('change', carregarDados);
+
+        async function deletarRegistro(id) {
+            if (confirm("Apagar esta transação do banco de dados?")) {
+                await db.transacoes.delete(id);
+                carregarDados();
+            }
+        }
+
+        // 7. Funções de Backup
+        async function exportarBackup() {
+            const todos = await db.transacoes.toArray();
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(todos));
+            const anchor = document.createElement('a');
+            anchor.setAttribute("href", dataStr);
+            anchor.setAttribute("download", `backup_financas_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+        }
+
+        function importarBackup(event) {
+            const reader = new FileReader();
+            reader.onload = async function (e) {
+                try {
+                    const dados = JSON.parse(e.target.result);
+                    if (Array.isArray(dados)) {
+                        await db.transacoes.clear();
+                        await db.transacoes.bulkAdd(dados);
+                        carregarDados();
+                        alert("Banco de dados restaurado com sucesso!");
+                    }
+                } catch (err) {
+                    alert("Erro ao ler arquivo de backup.");
+                }
+            };
+            reader.readAsText(event.target.files[0]);
+        }
+
+        // Inicialização
+        carregarDados();
+    </script>
+</body>
+
+</html>
