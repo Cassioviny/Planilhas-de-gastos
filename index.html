@@ -511,10 +511,6 @@
                 <div class="icon">⚠️</div>
                 <div class="info" id="text-vencidas"></div>
             </div>
-            <div class="notification-card pendente" id="alert-pendentes" style="display: none;">
-                <div class="icon">⏰</div>
-                <div class="info" id="text-pendentes"></div>
-            </div>
         </div>
 
         <!-- Filtros e Busca -->
@@ -677,21 +673,24 @@
     <div id="toast-container"></div>
 
     <script>
-        // Configuração Dexie DB (Versão 4 com Suporte a Recorrência e PIN)
+        // Inicialização segura do banco com schema flexível para evitar perda de dados
         const db = new Dexie("FinanceAppDB");
-        db.version(4).stores({
-            transacoes: '++id, descricao, valor, data, tipo, categoria, pagamento, parcelaAtual, totalParcelas, compraGrupoId, status, recorrente',
+
+        // Versão 1 a 4 unificadas para garantir compatibilidade
+        db.version(5).stores({
+            transacoes: '++id, descricao, valor, data, tipo, categoria, pagamento, status, recorrente',
             configs: 'chave, valor'
         });
 
         let chartInstance = null;
         const hojeStr = new Date().toISOString().split('T')[0];
         document.getElementById('data').value = hojeStr;
+
+        // Configuração do mês atual
         const mesAtual = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
         const filtroMesInput = document.getElementById('filtro-mes');
         filtroMesInput.value = mesAtual;
 
-        // --- MODO ESCURO ---
         function toggleDarkMode() {
             document.body.classList.toggle('dark-mode');
             const isDark = document.body.classList.contains('dark-mode');
@@ -699,13 +698,15 @@
         }
         if (localStorage.getItem('darkMode') === 'true') document.body.classList.add('dark-mode');
 
-        // --- PROTEÇÃO POR PIN ---
         async function checarPIN() {
-            const pinConfig = await db.configs.get('user_pin');
-            if (pinConfig && pinConfig.valor) {
-                document.getElementById('lock-screen').style.display = 'flex';
-            }
+            try {
+                const pinConfig = await db.configs.get('user_pin');
+                if (pinConfig && pinConfig.valor) {
+                    document.getElementById('lock-screen').style.display = 'flex';
+                }
+            } catch (e) { console.log(e); }
         }
+
         async function verificarPIN() {
             const input = document.getElementById('pin-input').value;
             const pinConfig = await db.configs.get('user_pin');
@@ -716,6 +717,7 @@
                 showToast("PIN Incorreto!");
             }
         }
+
         async function configurarPIN() {
             const novoPin = prompt("Digite um PIN de 4 dígitos (ou deixe em branco para remover):");
             if (novoPin !== null) {
@@ -724,7 +726,6 @@
             }
         }
 
-        // --- TOAST NOTIFICATIONS ---
         function showToast(mensagem) {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -734,7 +735,6 @@
             setTimeout(() => toast.remove(), 3000);
         }
 
-        // --- NOTIFICAÇÕES PUSH ---
         function solicitarNotificacoes() {
             if ('Notification' in window) {
                 Notification.requestPermission().then(perm => {
@@ -744,20 +744,17 @@
             }
         }
 
-        function dispararNotificacaoLocal(titulo, corpo) {
-            if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification(titulo, { body: corpo, icon: 'logo.png' });
-            }
-        }
-
-        // --- INTERFACE E CÁLCULOS ---
         function toggleParcelas() {
             const pagamento = document.getElementById('pagamento').value;
             document.getElementById('group-parcelas').style.display = pagamento === 'Cartão de Crédito' ? 'block' : 'none';
         }
 
-        function formatarMoeda(v) { return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
-        function formatarDataBR(d) { const [y, m, day] = d.split('-'); return `${day}/${m}/${y}`; }
+        function formatarMoeda(v) { return (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+        function formatarDataBR(d) {
+            if (!d) return '';
+            const parts = d.split('-');
+            return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : d;
+        }
 
         async function definirMeta() {
             const metaAtual = await db.configs.get('meta_mensal');
@@ -768,116 +765,110 @@
             }
         }
 
-        // --- PROCESSAR RECORRÊNCIA AUTOMÁTICA ---
-        async function processarContasFixas() {
-            const todas = await db.transacoes.toArray();
-            const fixas = todas.filter(t => t.recorrente === 'fixa');
+        async function carregarDados() {
+            try {
+                const mesAno = filtroMesInput.value;
+                const buscaTexto = document.getElementById('busca-texto').value.toLowerCase();
+                const filtroStatus = document.getElementById('filtro-status').value;
 
-            for (let item of fixas) {
-                const dataItem = new Date(item.data + 'T00:00:00');
-                const dataProxima = new Date(dataItem);
-                dataProxima.setMonth(dataProxima.getMonth() + 1);
-                const proximaStr = dataProxima.toISOString().split('T')[0];
+                const todasTransacoes = await db.transacoes.toArray();
 
-                // Se ainda não existe lançamento no mês seguinte, gera automaticamente
-                const jaExiste = todas.some(t => t.descricao === item.descricao && t.data === proximaStr);
-                if (!jaExiste && proximaStr <= hojeStr) {
-                    await db.transacoes.add({
-                        ...item,
-                        id: undefined,
-                        data: proximaStr,
-                        status: 'Pendente'
+                // Alerta de Vencidos
+                const vencidasGeral = todasTransacoes.filter(t => t.tipo === 'saida' && t.status === 'Pendente' && t.data < hojeStr);
+                const alertVencidas = document.getElementById('alert-vencidas');
+                if (vencidasGeral.length > 0) {
+                    const tot = vencidasGeral.reduce((a, c) => a + (c.valor || 0), 0);
+                    document.getElementById('text-vencidas').innerHTML = `<strong>Atenção:</strong> ${vencidasGeral.length} conta(s) VENCIDA(S) (${formatarMoeda(tot)})`;
+                    alertVencidas.style.display = 'flex';
+                } else {
+                    alertVencidas.style.display = 'none';
+                }
+
+                // Filtragem
+                let filtradas = todasTransacoes;
+
+                if (mesAno) {
+                    filtradas = filtradas.filter(t => t.data && t.data.startsWith(mesAno));
+                }
+
+                if (buscaTexto) {
+                    filtradas = filtradas.filter(t => t.descricao && t.descricao.toLowerCase().includes(buscaTexto));
+                }
+
+                if (filtroStatus !== 'todos') {
+                    if (filtroStatus === 'Vencida') {
+                        filtradas = filtradas.filter(t => t.status === 'Pendente' && t.data < hojeStr);
+                    } else {
+                        filtradas = filtradas.filter(t => t.status === filtroStatus);
+                    }
+                }
+
+                // Cálculos Dashboard
+                let entradas = 0, saidas = 0;
+                filtradas.forEach(t => {
+                    if (t.tipo === 'entrada') entradas += (t.valor || 0);
+                    else saidas += (t.valor || 0);
+                });
+
+                document.getElementById('total-entradas').innerText = formatarMoeda(entradas);
+                document.getElementById('total-saidas').innerText = formatarMoeda(saidas);
+                const saldo = entradas - saidas;
+                const elSaldo = document.getElementById('saldo-atual');
+                elSaldo.innerText = formatarMoeda(saldo);
+                elSaldo.style.color = saldo < 0 ? 'var(--danger)' : 'var(--text-main)';
+
+                // Teto de Gastos
+                const metaConfig = await db.configs.get('meta_mensal');
+                const metaValor = metaConfig ? metaConfig.valor : 0;
+                document.getElementById('budget-spent').innerText = `Gasto: ${formatarMoeda(saidas)}`;
+                document.getElementById('budget-target').innerText = `Meta: ${formatarMoeda(metaValor)}`;
+
+                const pct = metaValor > 0 ? Math.min((saidas / metaValor) * 100, 100) : 0;
+                const fill = document.getElementById('budget-fill');
+                fill.style.width = pct + '%';
+                fill.style.backgroundColor = pct >= 100 ? 'var(--danger)' : (pct > 80 ? 'var(--warning)' : 'var(--primary)');
+
+                // Renderizar Lista
+                const listEl = document.getElementById('transaction-list');
+                listEl.innerHTML = '';
+
+                if (filtradas.length === 0) {
+                    listEl.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:10px 0; font-size:13px;">Nenhum lançamento encontrado neste período.</p>`;
+                } else {
+                    filtradas.sort((a, b) => new Date(b.data) - new Date(a.data));
+                    filtradas.forEach(t => {
+                        const item = document.createElement('div');
+                        item.className = 'item';
+                        const cor = t.tipo === 'entrada' ? 'var(--primary)' : 'var(--danger)';
+                        const sinal = t.tipo === 'entrada' ? '+' : '-';
+
+                        let badgeStatus = t.status === 'Pago' || t.tipo === 'entrada'
+                            ? `<span class="badge badge-pago">Pago</span>`
+                            : (t.data < hojeStr ? `<span class="badge badge-vencido">Vencida</span>` : `<span class="badge badge-pendente">A Pagar</span>`);
+
+                        const badgeFixo = t.recorrente === 'fixa' ? `<span class="badge badge-fixo">Fixa</span>` : '';
+                        const infoParc = (t.pagamento === 'Cartão de Crédito' && t.totalParcelas > 1) ? `<span class="badge badge-card">${t.parcelaAtual || 1}/${t.totalParcelas}x</span>` : '';
+                        const btnPagar = (t.status === 'Pendente' && t.tipo === 'saida') ? `<button class="btn-pay" onclick="marcarComoPago(${t.id})">✓ Pagar</button>` : '';
+
+                        item.innerHTML = `
+                        <div class="item-info">
+                            <span class="item-title">${t.descricao} ${badgeStatus} ${badgeFixo} ${infoParc}</span>
+                            <span class="item-sub">${formatarDataBR(t.data)} • ${t.categoria} (${t.pagamento})</span>
+                        </div>
+                        <div class="item-actions">
+                            <span class="item-value" style="color:${cor};">${sinal} ${formatarMoeda(t.valor)}</span>
+                            ${btnPagar}
+                            <button class="btn-del" onclick="deletarRegistro(${t.id})">✕</button>
+                        </div>
+                    `;
+                        listEl.appendChild(item);
                     });
                 }
+
+                atualizarGrafico(filtradas);
+            } catch (err) {
+                console.error("Erro ao carregar dados:", err);
             }
-        }
-
-        async function carregarDados() {
-            await processarContasFixas();
-            const mesAno = filtroMesInput.value;
-            const buscaTexto = document.getElementById('busca-texto').value.toLowerCase();
-            const filtroStatus = document.getElementById('filtro-status').value;
-
-            const todasTransacoes = await db.transacoes.toArray();
-
-            // 1. Alertas de Vencidas Gerais
-            const vencidasGeral = todasTransacoes.filter(t => t.tipo === 'saida' && t.status === 'Pendente' && t.data < hojeStr);
-            const alertVencidas = document.getElementById('alert-vencidas');
-            if (vencidasGeral.length > 0) {
-                const tot = vencidasGeral.reduce((a, c) => a + c.valor, 0);
-                document.getElementById('text-vencidas').innerHTML = `<strong>Atenção:</strong> ${vencidasGeral.length} conta(s) VENCIDA(S) (${formatarMoeda(tot)})`;
-                alertVencidas.style.display = 'flex';
-                dispararNotificacaoLocal("Contas Vencidas!", `Você tem ${vencidasGeral.length} conta(s) pendente(s) atrasada(s).`);
-            } else { alertVencidas.style.display = 'none'; }
-
-            // 2. Transações Filtradas do Mês
-            let filtradas = todasTransacoes.filter(t => t.data && t.data.startsWith(mesAno));
-
-            if (buscaTexto) filtradas = filtradas.filter(t => t.descricao.toLowerCase().includes(buscaTexto));
-            if (filtroStatus !== 'todos') {
-                if (filtroStatus === 'Vencida') filtradas = filtradas.filter(t => t.status === 'Pendente' && t.data < hojeStr);
-                else filtradas = filtradas.filter(t => t.status === filtroStatus);
-            }
-
-            let entradas = 0, saidas = 0;
-            filtradas.forEach(t => { if (t.tipo === 'entrada') entradas += t.valor; else saidas += t.valor; });
-
-            document.getElementById('total-entradas').innerText = formatarMoeda(entradas);
-            document.getElementById('total-saidas').innerText = formatarMoeda(saidas);
-            const saldo = entradas - saidas;
-            const elSaldo = document.getElementById('saldo-atual');
-            elSaldo.innerText = formatarMoeda(saldo);
-            elSaldo.style.color = saldo < 0 ? 'var(--danger)' : 'var(--text-main)';
-
-            // 3. Teto de Gastos / Meta
-            const metaConfig = await db.configs.get('meta_mensal');
-            const metaValor = metaConfig ? metaConfig.valor : 0;
-            document.getElementById('budget-spent').innerText = `Gasto: ${formatarMoeda(saidas)}`;
-            document.getElementById('budget-target').innerText = `Meta: ${formatarMoeda(metaValor)}`;
-
-            const pct = metaValor > 0 ? Math.min((saidas / metaValor) * 100, 100) : 0;
-            const fill = document.getElementById('budget-fill');
-            fill.style.width = pct + '%';
-            fill.style.backgroundColor = pct >= 100 ? 'var(--danger)' : (pct > 80 ? 'var(--warning)' : 'var(--primary)');
-
-            // 4. Renderizar Lista
-            const listEl = document.getElementById('transaction-list');
-            listEl.innerHTML = '';
-
-            if (filtradas.length === 0) {
-                listEl.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:10px 0; font-size:13px;">Nenhum lançamento encontrado.</p>`;
-            } else {
-                filtradas.sort((a, b) => new Date(b.data) - new Date(a.data));
-                filtradas.forEach(t => {
-                    const item = document.createElement('div');
-                    item.className = 'item';
-                    const cor = t.tipo === 'entrada' ? 'var(--primary)' : 'var(--danger)';
-                    const sinal = t.tipo === 'entrada' ? '+' : '-';
-
-                    let badgeStatus = t.status === 'Pago' || t.tipo === 'entrada'
-                        ? `<span class="badge badge-pago">Pago</span>`
-                        : (t.data < hojeStr ? `<span class="badge badge-vencido">Vencida</span>` : `<span class="badge badge-pendente">A Pagar</span>`);
-
-                    const badgeFixo = t.recorrente === 'fixa' ? `<span class="badge badge-fixo">Fixa</span>` : '';
-                    const infoParc = (t.pagamento === 'Cartão de Crédito' && t.totalParcelas > 1) ? `<span class="badge badge-card">${t.parcelaAtual}/${t.totalParcelas}x</span>` : '';
-                    const btnPagar = (t.status === 'Pendente' && t.tipo === 'saida') ? `<button class="btn-pay" onclick="marcarComoPago(${t.id})">✓ Pagar</button>` : '';
-
-                    item.innerHTML = `
-                    <div class="item-info">
-                        <span class="item-title">${t.descricao} ${badgeStatus} ${badgeFixo} ${infoParc}</span>
-                        <span class="item-sub">${formatarDataBR(t.data)} • ${t.categoria} (${t.pagamento})</span>
-                    </div>
-                    <div class="item-actions">
-                        <span class="item-value" style="color:${cor};">${sinal} ${formatarMoeda(t.valor)}</span>
-                        ${btnPagar}
-                        <button class="btn-del" onclick="deletarRegistro(${t.id})">✕</button>
-                    </div>
-                `;
-                    listEl.appendChild(item);
-                });
-            }
-
-            atualizarGrafico(filtradas);
         }
 
         function atualizarGrafico(transacoes) {
@@ -901,32 +892,57 @@
 
         document.getElementById('finance-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const desc = document.getElementById('descricao').value;
-            const valorTotal = parseFloat(document.getElementById('valor').value);
-            const dataBase = new Date(document.getElementById('data').value + 'T00:00:00');
-            const tipo = document.getElementById('tipo').value;
-            const status = document.getElementById('status').value;
-            const pagamento = document.getElementById('pagamento').value;
-            const categoria = document.getElementById('categoria').value;
-            const recorrencia = document.getElementById('recorrencia').value;
+            try {
+                const desc = document.getElementById('descricao').value;
+                const valorTotal = parseFloat(document.getElementById('valor').value);
+                const dataInput = document.getElementById('data').value;
+                const tipo = document.getElementById('tipo').value;
+                const status = document.getElementById('status').value;
+                const pagamento = document.getElementById('pagamento').value;
+                const categoria = document.getElementById('categoria').value;
+                const recorrencia = document.getElementById('recorrencia').value;
 
-            let numParc = pagamento === 'Cartão de Crédito' ? (parseInt(document.getElementById('parcelas').value) || 1) : 1;
-            const valParc = parseFloat((valorTotal / numParc).toFixed(2));
-            const grupoId = Date.now();
+                let numParc = pagamento === 'Cartão de Crédito' ? (parseInt(document.getElementById('parcelas').value) || 1) : 1;
+                const valParc = parseFloat((valorTotal / numParc).toFixed(2));
+                const grupoId = Date.now();
 
-            for (let i = 0; i < numParc; i++) {
-                const d = new Date(dataBase);
-                d.setMonth(d.getMonth() + i);
-                await db.transacoes.add({
-                    descricao: desc, valor: valParc, data: d.toISOString().split('T')[0],
-                    tipo, status, categoria, pagamento, parcelaAtual: i + 1, totalParcelas: numParc, compraGrupoId: grupoId, recorrente: recorrencia
-                });
+                const dataBase = new Date(dataInput + 'T00:00:00');
+
+                for (let i = 0; i < numParc; i++) {
+                    const d = new Date(dataBase);
+                    d.setMonth(d.getMonth() + i);
+                    const dataStr = d.toISOString().split('T')[0];
+
+                    await db.transacoes.add({
+                        descricao: desc,
+                        valor: valParc,
+                        data: dataStr,
+                        tipo: tipo,
+                        status: status,
+                        categoria: categoria,
+                        pagamento: pagamento,
+                        parcelaAtual: i + 1,
+                        totalParcelas: numParc,
+                        compraGrupoId: grupoId,
+                        recorrente: recorrencia
+                    });
+                }
+
+                document.getElementById('descricao').value = '';
+                document.getElementById('valor').value = '';
+                showToast("Lançamento salvo com sucesso!");
+
+                // Atualizar o mês do filtro para o mês do registro adicionado caso seja diferente
+                const mesRegistro = dataInput.substring(0, 7);
+                if (filtroMesInput.value !== mesRegistro) {
+                    filtroMesInput.value = mesRegistro;
+                }
+
+                await carregarDados();
+            } catch (err) {
+                console.error("Erro ao salvar:", err);
+                showToast("Erro ao salvar lançamento!");
             }
-
-            document.getElementById('descricao').value = '';
-            document.getElementById('valor').value = '';
-            showToast("Lançamento salvo com sucesso!");
-            carregarDados();
         });
 
         document.getElementById('filtro-mes').addEventListener('change', carregarDados);
@@ -947,7 +963,6 @@
             }
         }
 
-        // --- EXPORTAÇÕES ---
         async function exportarCSV() {
             const dados = await db.transacoes.toArray();
             let csv = "ID,Descricao,Valor,Data,Tipo,Status,Categoria,Pagamento\n";
@@ -966,14 +981,14 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             const dados = await db.transacoes.toArray();
-            const filtrados = dados.filter(t => t.data.startsWith(filtroMesInput.value));
+            const filtrados = dados.filter(t => t.data && t.data.startsWith(filtroMesInput.value));
 
             doc.setFontSize(16);
             doc.text(`Relatorio Financeiro - ${filtroMesInput.value}`, 14, 20);
             doc.setFontSize(10);
 
             let y = 30;
-            filtrados.forEach((t, i) => {
+            filtrados.forEach((t) => {
                 doc.text(`${t.data} - ${t.descricao} (${t.categoria}): R$ ${t.valor.toFixed(2)} [${t.status}]`, 14, y);
                 y += 8;
                 if (y > 280) { doc.addPage(); y = 20; }
@@ -1008,11 +1023,11 @@
             reader.readAsText(e.target.files[0]);
         }
 
-        // Registrar Service Worker PWA
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW Error:', err));
         }
 
+        // Inicialização
         checarPIN();
         carregarDados();
     </script>
