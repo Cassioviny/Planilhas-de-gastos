@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="manifest" href="manifest.json">
     <title>Meu Controle Financeiro - Viny Webdesign</title>
 
     <!-- Favicon -->
@@ -668,6 +669,12 @@
         }
 
         carregarDados();
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js')
+                .catch(err => console.log('Erro no Service Worker:', err));
+        }
     </script>
 </body>
 
