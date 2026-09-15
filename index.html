@@ -9,8 +9,10 @@
     <link rel="icon" href="logo.png" type="image/png">
     <link rel="manifest" href="manifest.json">
 
-    <!-- Dexie.js (IndexedDB) -->
+    <!-- Dexie.js (IndexedDB) - usado apenas para migrar dados antigos do navegador -->
     <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- jsPDF para exportação em PDF -->
@@ -66,6 +68,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
             margin-bottom: 12px;
         }
 
@@ -461,6 +465,121 @@
             }
         }
 
+
+
+        /* Autenticação Supabase */
+        #auth-screen {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            z-index: 3000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .auth-card {
+            width: 100%;
+            max-width: 380px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 28px 22px;
+            box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+        }
+
+        .auth-brand {
+            text-align: center;
+            margin-bottom: 22px;
+        }
+
+        .auth-logo {
+            max-width: 120px;
+            height: auto;
+            margin-bottom: 12px;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+        }
+
+        .auth-brand h1 {
+            font-size: 21px;
+            margin-bottom: 6px;
+        }
+
+        .auth-brand p {
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .auth-field {
+            margin-bottom: 14px;
+        }
+
+        .auth-field label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+        }
+
+        .auth-field input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--card-bg);
+            color: var(--text-main);
+            font-size: 14px;
+            outline: none;
+        }
+
+        .auth-field input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.10);
+        }
+
+        .auth-submit {
+            width: 100%;
+            padding: 12px;
+            border: 0;
+            border-radius: 10px;
+            background: var(--primary);
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .auth-submit:disabled {
+            opacity: 0.65;
+            cursor: wait;
+        }
+
+        .auth-message {
+            min-height: 18px;
+            margin-top: 12px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--danger);
+        }
+
+        .session-info {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .session-email {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         /* Lock Screen Overlay */
         #lock-screen {
             position: fixed;
@@ -481,6 +600,32 @@
 
 <body>
 
+    <!-- Login Supabase -->
+    <div id="auth-screen">
+        <div class="auth-card">
+            <div class="auth-brand">
+                <img src="logo.png" alt="Viny Webdesign Logo" class="auth-logo">
+                <h1>Meu Controle Financeiro Pro</h1>
+                <p>Entre com seu e-mail e senha para acessar seus dados.</p>
+            </div>
+
+            <form id="auth-form">
+                <div class="auth-field">
+                    <label for="auth-email">E-mail</label>
+                    <input type="email" id="auth-email" autocomplete="email" required>
+                </div>
+
+                <div class="auth-field">
+                    <label for="auth-password">Senha</label>
+                    <input type="password" id="auth-password" autocomplete="current-password" required>
+                </div>
+
+                <button type="submit" class="auth-submit" id="auth-submit">Entrar</button>
+                <div class="auth-message" id="auth-message"></div>
+            </form>
+        </div>
+    </div>
+
     <!-- Lock Screen PIN -->
     <div id="lock-screen" style="display: none;">
         <h2>🔒 App Protegido</h2>
@@ -490,11 +635,16 @@
         <button class="btn-submit" style="width: 120px;" onclick="verificarPIN()">Entrar</button>
     </div>
 
-    <div class="container">
+    <div class="container" id="app-container" style="display: none;">
         <div class="top-bar">
             <button class="btn-icon" onclick="toggleDarkMode()">🌙 Modo Escuro</button>
             <button class="btn-icon" onclick="solicitarNotificacoes()">🔔 Ativar Alertas</button>
             <button class="btn-icon" onclick="configurarPIN()">🔑 PIN</button>
+            <button class="btn-icon" onclick="logoutSupabase()">🚪 Sair</button>
+            <div class="session-info">
+                <span>Conectado como:</span>
+                <strong class="session-email" id="user-email">-</strong>
+            </div>
         </div>
 
         <header>
@@ -666,28 +816,165 @@
             <button class="btn-aux" onclick="exportarCSV()">📊 Exportar CSV</button>
             <button class="btn-aux" onclick="exportarBackup()">💾 Backup JSON</button>
             <button class="btn-aux" onclick="document.getElementById('file-input').click()">📂 Restaurar</button>
-            <input type="file" id="file-input" style="display: none;" onchange="importarBackup(event)">
+            <button class="btn-aux" id="btn-migrar-local" style="display:none;" onclick="migrarDadosLocais()">☁️ Migrar
+                dados deste navegador</button>
+            <input type="file" id="file-input" accept=".json,application/json" style="display: none;"
+                onchange="importarBackup(event)">
         </div>
     </div>
 
     <div id="toast-container"></div>
 
     <script>
-        // Inicialização segura do banco com schema flexível para evitar perda de dados
-        const db = new Dexie("FinanceAppDB");
+        // ============================================================
+        // SUPABASE - AUTENTICAÇÃO
+        // ============================================================
+        const SUPABASE_URL = 'https://ikqpzoorsqcrkqjgzvmi.supabase.co';
+        const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_jA_5czmJFDceX7lJMIgrYw_FzR7oAIO';
 
-        // Versão 1 a 4 unificadas para garantir compatibilidade
-        db.version(5).stores({
+        const supabaseClient = window.supabase.createClient(
+            SUPABASE_URL,
+            SUPABASE_PUBLISHABLE_KEY
+        );
+
+        let usuarioAtual = null;
+        let appInicializado = false;
+
+        function mensagemLogin(texto, erro = true) {
+            const el = document.getElementById('auth-message');
+            el.textContent = texto || '';
+            el.style.color = erro ? 'var(--danger)' : 'var(--primary)';
+        }
+
+        function traduzirErroLogin(message) {
+            const msg = (message || '').toLowerCase();
+            if (msg.includes('invalid login credentials')) return 'E-mail ou senha incorretos.';
+            if (msg.includes('email not confirmed')) return 'Seu e-mail ainda não foi confirmado.';
+            if (msg.includes('too many requests')) return 'Muitas tentativas. Aguarde um pouco e tente novamente.';
+            return 'Não foi possível entrar. Verifique seus dados e tente novamente.';
+        }
+
+        async function mostrarAplicativo(session) {
+            if (!session || !session.user) return;
+
+            usuarioAtual = session.user;
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('app-container').style.display = 'block';
+            document.getElementById('user-email').textContent = usuarioAtual.email || 'Usuário';
+
+            if (!appInicializado) {
+                appInicializado = true;
+                await checarPIN();
+                await carregarDados();
+                await verificarDadosLocaisParaMigracao();
+            }
+        }
+
+        function mostrarTelaLogin() {
+            usuarioAtual = null;
+            appInicializado = false;
+            document.getElementById('app-container').style.display = 'none';
+            document.getElementById('lock-screen').style.display = 'none';
+            document.getElementById('auth-screen').style.display = 'flex';
+            document.getElementById('auth-password').value = '';
+        }
+
+        document.getElementById('auth-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const email = document.getElementById('auth-email').value.trim();
+            const password = document.getElementById('auth-password').value;
+            const btn = document.getElementById('auth-submit');
+
+            mensagemLogin('Entrando...', false);
+            btn.disabled = true;
+            btn.textContent = 'Entrando...';
+
+            try {
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email,
+                    password
+                });
+
+                if (error) throw error;
+
+                mensagemLogin('', false);
+                await mostrarAplicativo(data.session);
+            } catch (err) {
+                console.error('Erro no login:', err);
+                mensagemLogin(traduzirErroLogin(err.message));
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Entrar';
+            }
+        });
+
+        async function logoutSupabase() {
+            try {
+                const { error } = await supabaseClient.auth.signOut();
+                if (error) throw error;
+                mostrarTelaLogin();
+            } catch (err) {
+                console.error('Erro ao sair:', err);
+                showToast('Não foi possível sair. Tente novamente.');
+            }
+        }
+
+        async function inicializarAutenticacao() {
+            try {
+                const { data, error } = await supabaseClient.auth.getSession();
+                if (error) throw error;
+
+                if (data.session) {
+                    await mostrarAplicativo(data.session);
+                } else {
+                    mostrarTelaLogin();
+                }
+            } catch (err) {
+                console.error('Erro ao verificar sessão:', err);
+                mostrarTelaLogin();
+                mensagemLogin('Não foi possível verificar sua sessão. Confira sua conexão.');
+            }
+        }
+
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_OUT' || !session) {
+                mostrarTelaLogin();
+                return;
+            }
+
+            if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
+                void mostrarAplicativo(session);
+            }
+        });
+
+        // ============================================================
+        // BANCO ONLINE - SUPABASE
+        // O IndexedDB abaixo é aberto somente para migrar dados antigos.
+        // Todos os novos lançamentos e configurações passam a ser salvos
+        // no Supabase e ficam disponíveis em qualquer dispositivo.
+        // ============================================================
+        const dbLocal = new Dexie("FinanceAppDB");
+
+        dbLocal.version(5).stores({
             transacoes: '++id, descricao, valor, data, tipo, categoria, pagamento, status, recorrente',
             configs: 'chave, valor'
         });
 
         let chartInstance = null;
-        const hojeStr = new Date().toISOString().split('T')[0];
+        let carregandoDados = false;
+
+        function dataLocalISO(data = new Date()) {
+            const ano = data.getFullYear();
+            const mes = String(data.getMonth() + 1).padStart(2, '0');
+            const dia = String(data.getDate()).padStart(2, '0');
+            return `${ano}-${mes}-${dia}`;
+        }
+
+        const hojeStr = dataLocalISO();
         document.getElementById('data').value = hojeStr;
 
-        // Configuração do mês atual
-        const mesAtual = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+        const mesAtual = hojeStr.substring(0, 7);
         const filtroMesInput = document.getElementById('filtro-mes');
         filtroMesInput.value = mesAtual;
 
@@ -696,34 +983,86 @@
             const isDark = document.body.classList.contains('dark-mode');
             localStorage.setItem('darkMode', isDark);
         }
-        if (localStorage.getItem('darkMode') === 'true') document.body.classList.add('dark-mode');
+
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark-mode');
+        }
+
+        // ============================================================
+        // PIN LOCAL DO DISPOSITIVO
+        // O login principal é o Supabase. O PIN funciona apenas como uma
+        // trava extra neste navegador e não é enviado ao banco.
+        // ============================================================
+        function chavePinLocal() {
+            return usuarioAtual ? `finance_pin_${usuarioAtual.id}` : 'finance_pin_sem_usuario';
+        }
+
+        async function hashTexto(texto) {
+            const dados = new TextEncoder().encode(texto);
+            const hash = await crypto.subtle.digest('SHA-256', dados);
+            return Array.from(new Uint8Array(hash))
+                .map(byte => byte.toString(16).padStart(2, '0'))
+                .join('');
+        }
 
         async function checarPIN() {
             try {
-                const pinConfig = await db.configs.get('user_pin');
-                if (pinConfig && pinConfig.valor) {
+                const pinHash = localStorage.getItem(chavePinLocal());
+                if (pinHash) {
+                    document.getElementById('pin-input').value = '';
                     document.getElementById('lock-screen').style.display = 'flex';
                 }
-            } catch (e) { console.log(e); }
+            } catch (e) {
+                console.error('Erro ao verificar PIN:', e);
+            }
         }
 
         async function verificarPIN() {
-            const input = document.getElementById('pin-input').value;
-            const pinConfig = await db.configs.get('user_pin');
-            if (pinConfig && pinConfig.valor === input) {
+            const input = document.getElementById('pin-input').value.trim();
+            const pinHash = localStorage.getItem(chavePinLocal());
+
+            if (!pinHash) {
                 document.getElementById('lock-screen').style.display = 'none';
+                return;
+            }
+
+            if (!/^\d{4}$/.test(input)) {
+                showToast("Digite um PIN de 4 dígitos.");
+                return;
+            }
+
+            const inputHash = await hashTexto(input);
+
+            if (inputHash === pinHash) {
+                document.getElementById('lock-screen').style.display = 'none';
+                document.getElementById('pin-input').value = '';
                 showToast("Acesso liberado!");
             } else {
-                showToast("PIN Incorreto!");
+                showToast("PIN incorreto!");
             }
         }
 
         async function configurarPIN() {
             const novoPin = prompt("Digite um PIN de 4 dígitos (ou deixe em branco para remover):");
-            if (novoPin !== null) {
-                await db.configs.put({ chave: 'user_pin', valor: novoPin.trim() });
-                showToast(novoPin ? "PIN configurado!" : "PIN removido!");
+
+            if (novoPin === null) return;
+
+            const pin = novoPin.trim();
+
+            if (pin === '') {
+                localStorage.removeItem(chavePinLocal());
+                document.getElementById('lock-screen').style.display = 'none';
+                showToast("PIN removido deste dispositivo!");
+                return;
             }
+
+            if (!/^\d{4}$/.test(pin)) {
+                showToast("O PIN deve conter exatamente 4 números.");
+                return;
+            }
+
+            localStorage.setItem(chavePinLocal(), await hashTexto(pin));
+            showToast("PIN configurado neste dispositivo!");
         }
 
         function showToast(mensagem) {
@@ -736,124 +1075,326 @@
         }
 
         function solicitarNotificacoes() {
-            if ('Notification' in window) {
-                Notification.requestPermission().then(perm => {
-                    if (perm === 'granted') showToast("Notificações ativadas com sucesso!");
-                    else showToast("Permissão de notificação negada.");
-                });
+            if (!('Notification' in window)) {
+                showToast("Este navegador não oferece suporte a notificações.");
+                return;
             }
+
+            Notification.requestPermission().then(perm => {
+                if (perm === 'granted') showToast("Notificações ativadas com sucesso!");
+                else showToast("Permissão de notificação negada.");
+            });
         }
 
         function toggleParcelas() {
             const pagamento = document.getElementById('pagamento').value;
-            document.getElementById('group-parcelas').style.display = pagamento === 'Cartão de Crédito' ? 'block' : 'none';
+            document.getElementById('group-parcelas').style.display =
+                pagamento === 'Cartão de Crédito' ? 'block' : 'none';
         }
 
-        function formatarMoeda(v) { return (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+        function formatarMoeda(v) {
+            return Number(v || 0).toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            });
+        }
+
         function formatarDataBR(d) {
             if (!d) return '';
             const parts = d.split('-');
             return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : d;
         }
 
+        function adicionarMesesISO(dataISO, meses) {
+            const [ano, mes, dia] = dataISO.split('-').map(Number);
+            const alvo = new Date(ano, (mes - 1) + meses, 1, 12, 0, 0);
+            const ultimoDia = new Date(
+                alvo.getFullYear(),
+                alvo.getMonth() + 1,
+                0,
+                12,
+                0,
+                0
+            ).getDate();
+
+            alvo.setDate(Math.min(dia, ultimoDia));
+            return dataLocalISO(alvo);
+        }
+
+        function normalizarTransacaoBanco(t) {
+            return {
+                id: t.id,
+                user_id: t.user_id,
+                descricao: t.descricao || '',
+                valor: Number(t.valor || 0),
+                data: t.data,
+                tipo: t.tipo,
+                status: t.status,
+                categoria: t.categoria,
+                pagamento: t.pagamento,
+                parcelaAtual: Number(t.parcela_atual || 1),
+                totalParcelas: Number(t.total_parcelas || 1),
+                compraGrupoId: t.compra_grupo_id ?? null,
+                recorrente: t.recorrente || 'unica',
+                created_at: t.created_at,
+                updated_at: t.updated_at
+            };
+        }
+
+        function prepararTransacaoParaBanco(t) {
+            return {
+                user_id: usuarioAtual.id,
+                descricao: String(t.descricao || '').trim(),
+                valor: Number(t.valor || 0),
+                data: t.data,
+                tipo: t.tipo === 'entrada' ? 'entrada' : 'saida',
+                status: t.status === 'Pago' ? 'Pago' : 'Pendente',
+                categoria: t.categoria || 'Outros',
+                pagamento: t.pagamento || 'A Vista',
+                parcela_atual: Number(t.parcela_atual ?? t.parcelaAtual ?? 1),
+                total_parcelas: Number(t.total_parcelas ?? t.totalParcelas ?? 1),
+                compra_grupo_id: t.compra_grupo_id ?? t.compraGrupoId ?? null,
+                recorrente: (t.recorrente === 'fixa') ? 'fixa' : 'unica'
+            };
+        }
+
+        async function carregarTodasTransacoesSupabase() {
+            if (!usuarioAtual) return [];
+
+            const pagina = 1000;
+            let inicio = 0;
+            let todas = [];
+
+            while (true) {
+                const { data, error } = await supabaseClient
+                    .from('transacoes')
+                    .select('*')
+                    .order('data', { ascending: false })
+                    .order('id', { ascending: false })
+                    .range(inicio, inicio + pagina - 1);
+
+                if (error) throw error;
+
+                const lote = data || [];
+                todas = todas.concat(lote);
+
+                if (lote.length < pagina) break;
+                inicio += pagina;
+            }
+
+            return todas.map(normalizarTransacaoBanco);
+        }
+
+        async function obterConfig(chave) {
+            if (!usuarioAtual) return null;
+
+            const { data, error } = await supabaseClient
+                .from('configs')
+                .select('valor')
+                .eq('user_id', usuarioAtual.id)
+                .eq('chave', chave)
+                .maybeSingle();
+
+            if (error) throw error;
+            return data ? data.valor : null;
+        }
+
+        async function salvarConfig(chave, valor) {
+            if (!usuarioAtual) throw new Error('Usuário não autenticado.');
+
+            const { error } = await supabaseClient
+                .from('configs')
+                .upsert({
+                    user_id: usuarioAtual.id,
+                    chave,
+                    valor
+                }, {
+                    onConflict: 'user_id,chave'
+                });
+
+            if (error) throw error;
+        }
+
         async function definirMeta() {
-            const metaAtual = await db.configs.get('meta_mensal');
-            const valor = prompt("Defina seu teto de gastos mensal (R$):", metaAtual ? metaAtual.valor : "2000");
-            if (valor) {
-                await db.configs.put({ chave: 'meta_mensal', valor: parseFloat(valor) });
-                carregarDados();
+            try {
+                const metaAtual = await obterConfig('meta_mensal');
+                const valorInformado = prompt(
+                    "Defina seu teto de gastos mensal (R$):",
+                    metaAtual !== null && metaAtual !== undefined ? String(metaAtual) : "2000"
+                );
+
+                if (valorInformado === null) return;
+
+                const normalizado = valorInformado.trim().replace(/\./g, '').replace(',', '.');
+                const valor = Number(normalizado);
+
+                if (!Number.isFinite(valor) || valor < 0) {
+                    showToast("Digite um valor válido para a meta.");
+                    return;
+                }
+
+                await salvarConfig('meta_mensal', valor);
+                await carregarDados();
+                showToast("Meta mensal salva na nuvem!");
+            } catch (err) {
+                console.error("Erro ao salvar meta:", err);
+                showToast("Erro ao salvar a meta.");
             }
         }
 
         async function carregarDados() {
+            if (!usuarioAtual || carregandoDados) return;
+
+            carregandoDados = true;
+
             try {
                 const mesAno = filtroMesInput.value;
-                const buscaTexto = document.getElementById('busca-texto').value.toLowerCase();
+                const buscaTexto = document.getElementById('busca-texto').value.trim().toLowerCase();
                 const filtroStatus = document.getElementById('filtro-status').value;
 
-                const todasTransacoes = await db.transacoes.toArray();
+                const todasTransacoes = await carregarTodasTransacoesSupabase();
 
-                // Alerta de Vencidos
-                const vencidasGeral = todasTransacoes.filter(t => t.tipo === 'saida' && t.status === 'Pendente' && t.data < hojeStr);
+                // Alertas de vencimento consideram todos os lançamentos do usuário.
+                const vencidasGeral = todasTransacoes.filter(t =>
+                    t.tipo === 'saida' &&
+                    t.status === 'Pendente' &&
+                    t.data &&
+                    t.data < hojeStr
+                );
+
                 const alertVencidas = document.getElementById('alert-vencidas');
+
                 if (vencidasGeral.length > 0) {
-                    const tot = vencidasGeral.reduce((a, c) => a + (c.valor || 0), 0);
-                    document.getElementById('text-vencidas').innerHTML = `<strong>Atenção:</strong> ${vencidasGeral.length} conta(s) VENCIDA(S) (${formatarMoeda(tot)})`;
+                    const tot = vencidasGeral.reduce((a, c) => a + Number(c.valor || 0), 0);
+                    document.getElementById('text-vencidas').innerHTML =
+                        `<strong>Atenção:</strong> ${vencidasGeral.length} conta(s) VENCIDA(S) (${formatarMoeda(tot)})`;
                     alertVencidas.style.display = 'flex';
                 } else {
                     alertVencidas.style.display = 'none';
                 }
 
-                // Filtragem
-                let filtradas = todasTransacoes;
+                let filtradas = [...todasTransacoes];
 
                 if (mesAno) {
                     filtradas = filtradas.filter(t => t.data && t.data.startsWith(mesAno));
                 }
 
                 if (buscaTexto) {
-                    filtradas = filtradas.filter(t => t.descricao && t.descricao.toLowerCase().includes(buscaTexto));
+                    filtradas = filtradas.filter(t =>
+                        t.descricao &&
+                        t.descricao.toLowerCase().includes(buscaTexto)
+                    );
                 }
 
                 if (filtroStatus !== 'todos') {
                     if (filtroStatus === 'Vencida') {
-                        filtradas = filtradas.filter(t => t.status === 'Pendente' && t.data < hojeStr);
+                        filtradas = filtradas.filter(t =>
+                            t.status === 'Pendente' &&
+                            t.data &&
+                            t.data < hojeStr
+                        );
                     } else {
                         filtradas = filtradas.filter(t => t.status === filtroStatus);
                     }
                 }
 
-                // Cálculos Dashboard
-                let entradas = 0, saidas = 0;
+                let entradas = 0;
+                let saidas = 0;
+
                 filtradas.forEach(t => {
-                    if (t.tipo === 'entrada') entradas += (t.valor || 0);
-                    else saidas += (t.valor || 0);
+                    const valor = Number(t.valor || 0);
+                    if (t.tipo === 'entrada') entradas += valor;
+                    else saidas += valor;
                 });
 
                 document.getElementById('total-entradas').innerText = formatarMoeda(entradas);
                 document.getElementById('total-saidas').innerText = formatarMoeda(saidas);
+
                 const saldo = entradas - saidas;
                 const elSaldo = document.getElementById('saldo-atual');
                 elSaldo.innerText = formatarMoeda(saldo);
                 elSaldo.style.color = saldo < 0 ? 'var(--danger)' : 'var(--text-main)';
 
-                // Teto de Gastos
-                const metaConfig = await db.configs.get('meta_mensal');
-                const metaValor = metaConfig ? metaConfig.valor : 0;
-                document.getElementById('budget-spent').innerText = `Gasto: ${formatarMoeda(saidas)}`;
-                document.getElementById('budget-target').innerText = `Meta: ${formatarMoeda(metaValor)}`;
+                const metaConfig = await obterConfig('meta_mensal');
+                const metaValor = Number(metaConfig || 0);
 
-                const pct = metaValor > 0 ? Math.min((saidas / metaValor) * 100, 100) : 0;
+                document.getElementById('budget-spent').innerText =
+                    `Gasto: ${formatarMoeda(saidas)}`;
+
+                document.getElementById('budget-target').innerText =
+                    `Meta: ${formatarMoeda(metaValor)}`;
+
+                const pct = metaValor > 0
+                    ? Math.min((saidas / metaValor) * 100, 100)
+                    : 0;
+
                 const fill = document.getElementById('budget-fill');
                 fill.style.width = pct + '%';
-                fill.style.backgroundColor = pct >= 100 ? 'var(--danger)' : (pct > 80 ? 'var(--warning)' : 'var(--primary)');
+                fill.style.backgroundColor =
+                    pct >= 100
+                        ? 'var(--danger)'
+                        : (pct > 80 ? 'var(--warning)' : 'var(--primary)');
 
-                // Renderizar Lista
-                const listEl = document.getElementById('transaction-list');
-                listEl.innerHTML = '';
+                renderizarLista(filtradas);
+                atualizarGrafico(filtradas);
+            } catch (err) {
+                console.error("Erro ao carregar dados do Supabase:", err);
+                showToast("Não foi possível carregar seus dados. Verifique a internet.");
+            } finally {
+                carregandoDados = false;
+            }
+        }
 
-                if (filtradas.length === 0) {
-                    listEl.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:10px 0; font-size:13px;">Nenhum lançamento encontrado neste período.</p>`;
-                } else {
-                    filtradas.sort((a, b) => new Date(b.data) - new Date(a.data));
-                    filtradas.forEach(t => {
-                        const item = document.createElement('div');
-                        item.className = 'item';
-                        const cor = t.tipo === 'entrada' ? 'var(--primary)' : 'var(--danger)';
-                        const sinal = t.tipo === 'entrada' ? '+' : '-';
+        function renderizarLista(filtradas) {
+            const listEl = document.getElementById('transaction-list');
+            listEl.innerHTML = '';
 
-                        let badgeStatus = t.status === 'Pago' || t.tipo === 'entrada'
+            if (filtradas.length === 0) {
+                listEl.innerHTML =
+                    `<p style="text-align:center; color:var(--text-muted); padding:10px 0; font-size:13px;">Nenhum lançamento encontrado neste período.</p>`;
+                return;
+            }
+
+            filtradas
+                .sort((a, b) => {
+                    const dataCmp = String(b.data || '').localeCompare(String(a.data || ''));
+                    return dataCmp !== 0 ? dataCmp : Number(b.id || 0) - Number(a.id || 0);
+                })
+                .forEach(t => {
+                    const item = document.createElement('div');
+                    item.className = 'item';
+
+                    const cor = t.tipo === 'entrada' ? 'var(--primary)' : 'var(--danger)';
+                    const sinal = t.tipo === 'entrada' ? '+' : '-';
+
+                    const badgeStatus =
+                        t.status === 'Pago' || t.tipo === 'entrada'
                             ? `<span class="badge badge-pago">Pago</span>`
-                            : (t.data < hojeStr ? `<span class="badge badge-vencido">Vencida</span>` : `<span class="badge badge-pendente">A Pagar</span>`);
+                            : (
+                                t.data < hojeStr
+                                    ? `<span class="badge badge-vencido">Vencida</span>`
+                                    : `<span class="badge badge-pendente">A Pagar</span>`
+                            );
 
-                        const badgeFixo = t.recorrente === 'fixa' ? `<span class="badge badge-fixo">Fixa</span>` : '';
-                        const infoParc = (t.pagamento === 'Cartão de Crédito' && t.totalParcelas > 1) ? `<span class="badge badge-card">${t.parcelaAtual || 1}/${t.totalParcelas}x</span>` : '';
-                        const btnPagar = (t.status === 'Pendente' && t.tipo === 'saida') ? `<button class="btn-pay" onclick="marcarComoPago(${t.id})">✓ Pagar</button>` : '';
+                    const badgeFixo =
+                        t.recorrente === 'fixa'
+                            ? `<span class="badge badge-fixo">Fixa</span>`
+                            : '';
 
-                        item.innerHTML = `
+                    const infoParc =
+                        t.pagamento === 'Cartão de Crédito' && t.totalParcelas > 1
+                            ? `<span class="badge badge-card">${t.parcelaAtual || 1}/${t.totalParcelas}x</span>`
+                            : '';
+
+                    const btnPagar =
+                        t.status === 'Pendente' && t.tipo === 'saida'
+                            ? `<button class="btn-pay" onclick="marcarComoPago(${t.id})">✓ Pagar</button>`
+                            : '';
+
+                    item.innerHTML = `
                         <div class="item-info">
-                            <span class="item-title">${t.descricao} ${badgeStatus} ${badgeFixo} ${infoParc}</span>
-                            <span class="item-sub">${formatarDataBR(t.data)} • ${t.categoria} (${t.pagamento})</span>
+                            <span class="item-title">${escaparHTML(t.descricao)} ${badgeStatus} ${badgeFixo} ${infoParc}</span>
+                            <span class="item-sub">${formatarDataBR(t.data)} • ${escaparHTML(t.categoria)} (${escaparHTML(t.pagamento)})</span>
                         </div>
                         <div class="item-actions">
                             <span class="item-value" style="color:${cor};">${sinal} ${formatarMoeda(t.valor)}</span>
@@ -861,40 +1402,84 @@
                             <button class="btn-del" onclick="deletarRegistro(${t.id})">✕</button>
                         </div>
                     `;
-                        listEl.appendChild(item);
-                    });
-                }
 
-                atualizarGrafico(filtradas);
-            } catch (err) {
-                console.error("Erro ao carregar dados:", err);
-            }
+                    listEl.appendChild(item);
+                });
+        }
+
+        function escaparHTML(valor) {
+            return String(valor ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
         }
 
         function atualizarGrafico(transacoes) {
             const despesas = transacoes.filter(t => t.tipo === 'saida');
             const catMap = {};
-            despesas.forEach(t => catMap[t.categoria] = (catMap[t.categoria] || 0) + t.valor);
+
+            despesas.forEach(t => {
+                catMap[t.categoria] =
+                    (catMap[t.categoria] || 0) + Number(t.valor || 0);
+            });
 
             const ctx = document.getElementById('categoryChart').getContext('2d');
-            if (chartInstance) chartInstance.destroy();
+
+            if (chartInstance) {
+                chartInstance.destroy();
+                chartInstance = null;
+            }
+
             if (Object.keys(catMap).length === 0) return;
 
             chartInstance = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
                     labels: Object.keys(catMap),
-                    datasets: [{ data: Object.values(catMap), backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#64748b'] }]
+                    datasets: [{
+                        data: Object.values(catMap),
+                        backgroundColor: [
+                            '#ef4444',
+                            '#f59e0b',
+                            '#3b82f6',
+                            '#8b5cf6',
+                            '#ec4899',
+                            '#14b8a6',
+                            '#64748b'
+                        ]
+                    }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 10 } } } } }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                boxWidth: 10,
+                                font: { size: 10 }
+                            }
+                        }
+                    }
+                }
             });
         }
 
         document.getElementById('finance-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            if (!usuarioAtual) {
+                showToast("Sua sessão expirou. Entre novamente.");
+                return;
+            }
+
+            const submitBtn = e.currentTarget.querySelector('button[type="submit"]');
+
             try {
-                const desc = document.getElementById('descricao').value;
-                const valorTotal = parseFloat(document.getElementById('valor').value);
+                const desc = document.getElementById('descricao').value.trim();
+                const valorTotal = Number(document.getElementById('valor').value);
                 const dataInput = document.getElementById('data').value;
                 const tipo = document.getElementById('tipo').value;
                 const status = document.getElementById('status').value;
@@ -902,46 +1487,73 @@
                 const categoria = document.getElementById('categoria').value;
                 const recorrencia = document.getElementById('recorrencia').value;
 
-                let numParc = pagamento === 'Cartão de Crédito' ? (parseInt(document.getElementById('parcelas').value) || 1) : 1;
-                const valParc = parseFloat((valorTotal / numParc).toFixed(2));
+                if (!desc || !Number.isFinite(valorTotal) || valorTotal <= 0 || !dataInput) {
+                    showToast("Preencha descrição, valor e data corretamente.");
+                    return;
+                }
+
+                const numParc =
+                    pagamento === 'Cartão de Crédito'
+                        ? (parseInt(document.getElementById('parcelas').value, 10) || 1)
+                        : 1;
+
+                const valorBase = Math.floor((valorTotal / numParc) * 100) / 100;
+                const totalBaseCentavos = Math.round(valorBase * 100) * numParc;
+                const totalCentavos = Math.round(valorTotal * 100);
+                const diferencaCentavos = totalCentavos - totalBaseCentavos;
                 const grupoId = Date.now();
 
-                const dataBase = new Date(dataInput + 'T00:00:00');
+                const registros = [];
 
                 for (let i = 0; i < numParc; i++) {
-                    const d = new Date(dataBase);
-                    d.setMonth(d.getMonth() + i);
-                    const dataStr = d.toISOString().split('T')[0];
+                    let valorParcelaCentavos = Math.round(valorBase * 100);
 
-                    await db.transacoes.add({
+                    if (i === numParc - 1) {
+                        valorParcelaCentavos += diferencaCentavos;
+                    }
+
+                    registros.push({
+                        user_id: usuarioAtual.id,
                         descricao: desc,
-                        valor: valParc,
-                        data: dataStr,
-                        tipo: tipo,
-                        status: status,
-                        categoria: categoria,
-                        pagamento: pagamento,
-                        parcelaAtual: i + 1,
-                        totalParcelas: numParc,
-                        compraGrupoId: grupoId,
+                        valor: valorParcelaCentavos / 100,
+                        data: adicionarMesesISO(dataInput, i),
+                        tipo,
+                        status,
+                        categoria,
+                        pagamento,
+                        parcela_atual: i + 1,
+                        total_parcelas: numParc,
+                        compra_grupo_id: grupoId,
                         recorrente: recorrencia
                     });
                 }
 
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Salvando...';
+
+                const { error } = await supabaseClient
+                    .from('transacoes')
+                    .insert(registros);
+
+                if (error) throw error;
+
                 document.getElementById('descricao').value = '';
                 document.getElementById('valor').value = '';
-                showToast("Lançamento salvo com sucesso!");
 
-                // Atualizar o mês do filtro para o mês do registro adicionado caso seja diferente
                 const mesRegistro = dataInput.substring(0, 7);
+
                 if (filtroMesInput.value !== mesRegistro) {
                     filtroMesInput.value = mesRegistro;
                 }
 
                 await carregarDados();
+                showToast("Lançamento salvo na nuvem!");
             } catch (err) {
-                console.error("Erro ao salvar:", err);
-                showToast("Erro ao salvar lançamento!");
+                console.error("Erro ao salvar lançamento:", err);
+                showToast("Erro ao salvar lançamento no banco.");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Salvar Registro';
             }
         });
 
@@ -950,86 +1562,427 @@
         document.getElementById('filtro-status').addEventListener('change', carregarDados);
 
         async function marcarComoPago(id) {
-            await db.transacoes.update(id, { status: 'Pago' });
-            showToast("Conta marcada como Paga!");
-            carregarDados();
+            try {
+                const { error } = await supabaseClient
+                    .from('transacoes')
+                    .update({ status: 'Pago' })
+                    .eq('id', id)
+                    .eq('user_id', usuarioAtual.id);
+
+                if (error) throw error;
+
+                await carregarDados();
+                showToast("Conta marcada como paga!");
+            } catch (err) {
+                console.error("Erro ao marcar como pago:", err);
+                showToast("Não foi possível atualizar a conta.");
+            }
         }
 
         async function deletarRegistro(id) {
-            if (confirm("Excluir este lançamento?")) {
-                await db.transacoes.delete(id);
+            if (!confirm("Excluir este lançamento?")) return;
+
+            try {
+                const { error } = await supabaseClient
+                    .from('transacoes')
+                    .delete()
+                    .eq('id', id)
+                    .eq('user_id', usuarioAtual.id);
+
+                if (error) throw error;
+
+                await carregarDados();
                 showToast("Registro excluído.");
-                carregarDados();
+            } catch (err) {
+                console.error("Erro ao excluir:", err);
+                showToast("Não foi possível excluir o lançamento.");
             }
         }
 
         async function exportarCSV() {
-            const dados = await db.transacoes.toArray();
-            let csv = "ID,Descricao,Valor,Data,Tipo,Status,Categoria,Pagamento\n";
-            dados.forEach(d => {
-                csv += `${d.id},"${d.descricao}",${d.valor},${d.data},${d.tipo},${d.status},${d.categoria},${d.pagamento}\n`;
-            });
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `relatorio_financeiro_${filtroMesInput.value}.csv`;
-            link.click();
-            showToast("CSV exportado!");
+            try {
+                const dados = await carregarTodasTransacoesSupabase();
+
+                let csv = "\uFEFFID,Descricao,Valor,Data,Tipo,Status,Categoria,Pagamento,Parcela,TotalParcelas\n";
+
+                dados.forEach(d => {
+                    const descricao = String(d.descricao || '').replaceAll('"', '""');
+                    const categoria = String(d.categoria || '').replaceAll('"', '""');
+                    const pagamento = String(d.pagamento || '').replaceAll('"', '""');
+
+                    csv += [
+                        d.id,
+                        `"${descricao}"`,
+                        Number(d.valor || 0).toFixed(2).replace('.', ','),
+                        d.data,
+                        d.tipo,
+                        d.status,
+                        `"${categoria}"`,
+                        `"${pagamento}"`,
+                        d.parcelaAtual || 1,
+                        d.totalParcelas || 1
+                    ].join(';') + '\n';
+                });
+
+                const blob = new Blob([csv], {
+                    type: 'text/csv;charset=utf-8;'
+                });
+
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `relatorio_financeiro_${filtroMesInput.value}.csv`;
+                link.click();
+
+                setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+                showToast("CSV exportado!");
+            } catch (err) {
+                console.error("Erro ao exportar CSV:", err);
+                showToast("Erro ao exportar CSV.");
+            }
         }
 
         async function exportarPDF() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            const dados = await db.transacoes.toArray();
-            const filtrados = dados.filter(t => t.data && t.data.startsWith(filtroMesInput.value));
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                const dados = await carregarTodasTransacoesSupabase();
 
-            doc.setFontSize(16);
-            doc.text(`Relatorio Financeiro - ${filtroMesInput.value}`, 14, 20);
-            doc.setFontSize(10);
+                const filtrados = dados.filter(t =>
+                    t.data &&
+                    t.data.startsWith(filtroMesInput.value)
+                );
 
-            let y = 30;
-            filtrados.forEach((t) => {
-                doc.text(`${t.data} - ${t.descricao} (${t.categoria}): R$ ${t.valor.toFixed(2)} [${t.status}]`, 14, y);
-                y += 8;
-                if (y > 280) { doc.addPage(); y = 20; }
-            });
+                doc.setFontSize(16);
+                doc.text(`Relatorio Financeiro - ${filtroMesInput.value}`, 14, 20);
+                doc.setFontSize(10);
 
-            doc.save(`Relatorio_${filtroMesInput.value}.pdf`);
-            showToast("PDF gerado com sucesso!");
+                let y = 30;
+
+                filtrados.forEach(t => {
+                    const descricao = String(t.descricao || '').substring(0, 55);
+                    const linha =
+                        `${t.data} - ${descricao} (${t.categoria}): R$ ${Number(t.valor || 0).toFixed(2)} [${t.status}]`;
+
+                    const linhas = doc.splitTextToSize(linha, 180);
+
+                    linhas.forEach(parte => {
+                        if (y > 280) {
+                            doc.addPage();
+                            y = 20;
+                        }
+
+                        doc.text(parte, 14, y);
+                        y += 7;
+                    });
+                });
+
+                if (filtrados.length === 0) {
+                    doc.text('Nenhum lancamento encontrado neste periodo.', 14, 30);
+                }
+
+                doc.save(`Relatorio_${filtroMesInput.value}.pdf`);
+                showToast("PDF gerado com sucesso!");
+            } catch (err) {
+                console.error("Erro ao exportar PDF:", err);
+                showToast("Erro ao gerar PDF.");
+            }
         }
 
         async function exportarBackup() {
-            const todos = await db.transacoes.toArray();
-            const blob = new Blob([JSON.stringify(todos)], { type: 'application/json' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `backup_financas.json`;
-            link.click();
+            try {
+                const transacoes = await carregarTodasTransacoesSupabase();
+                const metaMensal = await obterConfig('meta_mensal');
+
+                const backup = {
+                    versao: 2,
+                    exportado_em: new Date().toISOString(),
+                    transacoes,
+                    configs: {
+                        meta_mensal: metaMensal
+                    }
+                };
+
+                const blob = new Blob(
+                    [JSON.stringify(backup, null, 2)],
+                    { type: 'application/json;charset=utf-8' }
+                );
+
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `backup_financas_${dataLocalISO()}.json`;
+                link.click();
+
+                setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+                showToast("Backup criado!");
+            } catch (err) {
+                console.error("Erro ao criar backup:", err);
+                showToast("Erro ao criar backup.");
+            }
         }
 
-        function importarBackup(e) {
+        function extrairTransacoesBackup(conteudo) {
+            if (Array.isArray(conteudo)) {
+                return conteudo;
+            }
+
+            if (
+                conteudo &&
+                typeof conteudo === 'object' &&
+                Array.isArray(conteudo.transacoes)
+            ) {
+                return conteudo.transacoes;
+            }
+
+            return null;
+        }
+
+        async function importarBackup(e) {
+            const arquivo = e.target.files && e.target.files[0];
+            e.target.value = '';
+
+            if (!arquivo) return;
+
             const reader = new FileReader();
+
             reader.onload = async function (evt) {
                 try {
-                    const dados = JSON.parse(evt.target.result);
-                    if (Array.isArray(dados)) {
-                        await db.transacoes.clear();
-                        await db.transacoes.bulkAdd(dados);
-                        carregarDados();
-                        showToast("Backup restaurado!");
+                    const conteudo = JSON.parse(evt.target.result);
+                    const transacoesOriginais = extrairTransacoesBackup(conteudo);
+
+                    if (!transacoesOriginais) {
+                        showToast("Arquivo de backup inválido.");
+                        return;
                     }
-                } catch (err) { showToast("Erro ao importar backup."); }
+
+                    if (!confirm(
+                        `O backup possui ${transacoesOriginais.length} lançamento(s).\n\n` +
+                        `A restauração substituirá TODOS os seus lançamentos atuais na nuvem.\n\nContinuar?`
+                    )) {
+                        return;
+                    }
+
+                    const preparados = transacoesOriginais
+                        .map(prepararTransacaoParaBanco)
+                        .filter(t =>
+                            t.descricao &&
+                            t.valor >= 0 &&
+                            t.data
+                        );
+
+                    const { error: deleteError } = await supabaseClient
+                        .from('transacoes')
+                        .delete()
+                        .eq('user_id', usuarioAtual.id);
+
+                    if (deleteError) throw deleteError;
+
+                    if (preparados.length > 0) {
+                        const tamanhoLote = 500;
+
+                        for (let i = 0; i < preparados.length; i += tamanhoLote) {
+                            const lote = preparados.slice(i, i + tamanhoLote);
+
+                            const { error: insertError } = await supabaseClient
+                                .from('transacoes')
+                                .insert(lote);
+
+                            if (insertError) throw insertError;
+                        }
+                    }
+
+                    if (
+                        conteudo &&
+                        !Array.isArray(conteudo) &&
+                        conteudo.configs &&
+                        conteudo.configs.meta_mensal !== undefined
+                    ) {
+                        await salvarConfig(
+                            'meta_mensal',
+                            conteudo.configs.meta_mensal
+                        );
+                    }
+
+                    await carregarDados();
+                    showToast("Backup restaurado na nuvem!");
+                } catch (err) {
+                    console.error("Erro ao importar backup:", err);
+                    showToast("Erro ao importar backup.");
+                }
             };
-            reader.readAsText(e.target.files[0]);
+
+            reader.readAsText(arquivo);
+        }
+
+        // ============================================================
+        // MIGRAÇÃO DO ANTIGO INDEXEDDB PARA O SUPABASE
+        // ============================================================
+        function assinaturaTransacao(t) {
+            return [
+                String(t.descricao || '').trim().toLowerCase(),
+                Number(t.valor || 0).toFixed(2),
+                t.data || '',
+                t.tipo || '',
+                t.status || '',
+                t.categoria || '',
+                t.pagamento || '',
+                Number(t.parcela_atual ?? t.parcelaAtual ?? 1),
+                Number(t.total_parcelas ?? t.totalParcelas ?? 1),
+                t.recorrente || 'unica'
+            ].join('|');
+        }
+
+        async function verificarDadosLocaisParaMigracao() {
+            const botao = document.getElementById('btn-migrar-local');
+
+            try {
+                if (!dbLocal.isOpen()) {
+                    await dbLocal.open();
+                }
+
+                const quantidade = await dbLocal.transacoes.count();
+
+                if (quantidade > 0) {
+                    botao.style.display = 'block';
+                    botao.textContent =
+                        `☁️ Migrar ${quantidade} lançamento(s) deste navegador`;
+                } else {
+                    botao.style.display = 'none';
+                }
+            } catch (err) {
+                console.log("Nenhum banco local para migrar:", err);
+                botao.style.display = 'none';
+            }
+        }
+
+        async function migrarDadosLocais() {
+            const botao = document.getElementById('btn-migrar-local');
+
+            try {
+                if (!usuarioAtual) {
+                    showToast("Entre novamente antes de migrar.");
+                    return;
+                }
+
+                if (!dbLocal.isOpen()) {
+                    await dbLocal.open();
+                }
+
+                const locais = await dbLocal.transacoes.toArray();
+
+                if (locais.length === 0) {
+                    botao.style.display = 'none';
+                    showToast("Não há lançamentos locais para migrar.");
+                    return;
+                }
+
+                if (!confirm(
+                    `Foram encontrados ${locais.length} lançamento(s) salvos neste navegador.\n\n` +
+                    `Eles serão copiados para sua conta no Supabase. Os dados locais não serão apagados.\n\nContinuar?`
+                )) {
+                    return;
+                }
+
+                botao.disabled = true;
+                botao.textContent = 'Migrando...';
+
+                const nuvem = await carregarTodasTransacoesSupabase();
+
+                // Compara a quantidade de ocorrências de cada lançamento.
+                // Assim, se existirem dois lançamentos realmente idênticos no
+                // banco local, os dois são preservados, sem duplicar em uma
+                // segunda tentativa de migração.
+                const contagemNuvem = new Map();
+
+                nuvem.forEach(t => {
+                    const assinatura = assinaturaTransacao(t);
+                    contagemNuvem.set(
+                        assinatura,
+                        (contagemNuvem.get(assinatura) || 0) + 1
+                    );
+                });
+
+                const vistosLocais = new Map();
+                const novos = [];
+
+                locais
+                    .map(prepararTransacaoParaBanco)
+                    .filter(t => Boolean(t.descricao && t.data))
+                    .forEach(t => {
+                        const assinatura = assinaturaTransacao(t);
+                        const ocorrenciaLocal = vistosLocais.get(assinatura) || 0;
+                        const quantidadeJaNaNuvem = contagemNuvem.get(assinatura) || 0;
+
+                        if (ocorrenciaLocal >= quantidadeJaNaNuvem) {
+                            novos.push(t);
+                        }
+
+                        vistosLocais.set(assinatura, ocorrenciaLocal + 1);
+                    });
+
+                if (novos.length > 0) {
+                    const tamanhoLote = 500;
+
+                    for (let i = 0; i < novos.length; i += tamanhoLote) {
+                        const lote = novos.slice(i, i + tamanhoLote);
+
+                        const { error } = await supabaseClient
+                            .from('transacoes')
+                            .insert(lote);
+
+                        if (error) throw error;
+                    }
+                }
+
+                try {
+                    const metaLocal = await dbLocal.configs.get('meta_mensal');
+                    const metaNuvem = await obterConfig('meta_mensal');
+
+                    if (
+                        metaLocal &&
+                        metaLocal.valor !== undefined &&
+                        (metaNuvem === null || metaNuvem === undefined)
+                    ) {
+                        await salvarConfig(
+                            'meta_mensal',
+                            Number(metaLocal.valor || 0)
+                        );
+                    }
+                } catch (configErr) {
+                    console.log("Meta local não foi migrada:", configErr);
+                }
+
+                await carregarDados();
+
+                const ignorados = locais.length - novos.length;
+
+                if (novos.length > 0) {
+                    showToast(
+                        ignorados > 0
+                            ? `${novos.length} migrado(s); ${ignorados} já existia(m) na nuvem.`
+                            : `${novos.length} lançamento(s) migrado(s) para a nuvem!`
+                    );
+                } else {
+                    showToast("Todos os lançamentos locais já estavam na nuvem.");
+                }
+
+                botao.style.display = 'none';
+            } catch (err) {
+                console.error("Erro na migração:", err);
+                showToast("Não foi possível migrar os dados locais.");
+                await verificarDadosLocaisParaMigracao();
+            } finally {
+                botao.disabled = false;
+            }
         }
 
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW Error:', err));
+            navigator.serviceWorker
+                .register('./sw.js')
+                .catch(err => console.log('SW Error:', err));
         }
 
         // Inicialização
-        checarPIN();
-        carregarDados();
+        inicializarAutenticacao();
     </script>
 </body>
 
