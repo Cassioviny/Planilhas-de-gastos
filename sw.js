@@ -1,10 +1,25 @@
-const CACHE_NAME = 'financas-v9';
+const CACHE_NAME = 'financas-v15';
 
 const STATIC_ASSETS = [
-  './',
-  './index.html',
-  './manifest.json',
-  './logo.png'
+  "./",
+  "./index.html",
+  "./manifest.json",
+  "./logo.png",
+  "./css/01-base.css",
+  "./css/02-components.css",
+  "./css/03-features.css",
+  "./css/04-system.css",
+  "./js/01-auth-realtime.js",
+  "./js/02-core-ui.js",
+  "./js/03-contas.js",
+  "./js/04-cartoes.js",
+  "./js/05-recorrencias.js",
+  "./js/06-dashboard-dados.js",
+  "./js/07-transacoes-form.js",
+  "./js/08-liquidacoes.js",
+  "./js/09-relatorios-backup.js",
+  "./js/10-migracao.js",
+  "./js/11-main.js"
 ];
 
 self.addEventListener('install', (event) => {
@@ -27,6 +42,12 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener('fetch', (event) => {
   const request = event.request;
 
@@ -43,7 +64,7 @@ self.addEventListener('fetch', (event) => {
   // Para navegação/HTML, usa rede primeiro para evitar versão antiga do app.
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: 'no-store' })
         .then((response) => {
           if (response && response.ok) {
             const copy = response.clone();

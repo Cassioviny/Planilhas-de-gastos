@@ -1,0 +1,55 @@
+ETAPA 5.7.1 - ORGANIZAÇÃO DO PROJETO
+=====================================
+
+Esta versão mantém a lógica da Etapa 5.7 (Contas e Carteiras),
+mas tira o CSS e o JavaScript gigantes de dentro do index.html.
+
+ESTRUTURA
+---------
+index.html
+sw.js
+manifest.json         <- mantenha o seu arquivo atual
+logo.png              <- mantenha o seu arquivo atual
+
+css/
+  01-base.css
+  02-components.css
+  03-features.css
+  04-system.css
+
+js/
+  01-auth-realtime.js
+  02-core-ui.js
+  03-contas.js
+  04-cartoes.js
+  05-recorrencias.js
+  06-dashboard-dados.js
+  07-transacoes-form.js
+  08-liquidacoes.js
+  09-relatorios-backup.js
+  10-migracao.js
+  11-main.js
+
+COMO ATUALIZAR
+--------------
+1. Substitua o index.html.
+2. Substitua o sw.js.
+3. Crie as pastas css e js.
+4. Coloque todos os arquivos nas pastas correspondentes.
+5. NÃO apague seu manifest.json nem seu logo.png.
+6. Publique tudo junto.
+7. Faça Ctrl + Shift + R uma vez.
+
+CACHE
+-----
+financas-v15
+
+BANCO
+-----
+Nenhum SQL novo é necessário nesta etapa.
+
+IMPORTANTE
+----------
+A ordem dos arquivos JavaScript no index.html deve ser mantida.
+Eles foram separados sem transformar o projeto em módulos ES,
+justamente para reduzir o risco de quebrar as funções já existentes.

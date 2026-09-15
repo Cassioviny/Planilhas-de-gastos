@@ -1,0 +1,436 @@
+/* Seções / Cards Genericos */
+        .section-card {
+            background: var(--card-bg);
+            padding: 16px;
+            border-radius: 16px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border);
+        }
+
+        .chart-section {
+            max-height: 250px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        h2 {
+            font-size: 15px;
+            margin-bottom: 12px;
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--text-muted);
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            font-size: 14px;
+            background: var(--card-bg);
+            color: var(--text-main);
+            outline: none;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        button.btn-submit {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        /* Meta de Gastos */
+        .budget-progress-container {
+            margin-top: 8px;
+        }
+
+        .budget-bar-bg {
+            background: var(--border);
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .budget-bar-fill {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.3s, background-color 0.3s;
+        }
+
+        /* Lista */
+        .item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .item:last-child {
+            border-bottom: none;
+        }
+
+        .item-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .item-title {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .item-sub {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .badge {
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .badge-card {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-pago {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-pendente {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-vencido {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-parcial {
+            background: #ffedd5;
+            color: #9a3412;
+        }
+
+        .badge-fixo {
+            background: #f3e8ff;
+            color: #6b21a8;
+        }
+
+        .item-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .item-value {
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .btn-pay {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-edit {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #60a5fa;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-history {
+            background: #f3e8ff;
+            color: #6b21a8;
+            border: 1px solid #c084fc;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .payment-history-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 9998;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            background: rgba(15, 23, 42, 0.62);
+            backdrop-filter: blur(3px);
+        }
+
+        .payment-history-modal.open {
+            display: flex;
+        }
+
+        .payment-history-box {
+            width: min(640px, 100%);
+            max-height: 88vh;
+            overflow: auto;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+            padding: 16px;
+        }
+
+        .payment-history-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .payment-history-head h3 {
+            margin: 0;
+            font-size: 17px;
+        }
+
+        .payment-history-head p {
+            margin: 4px 0 0;
+            color: var(--text-muted);
+            font-size: 10px;
+            line-height: 1.4;
+        }
+
+        .payment-history-close {
+            flex: 0 0 auto;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text-main);
+            width: 32px;
+            height: 32px;
+            border-radius: 9px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 800;
+        }
+
+        .payment-history-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 7px;
+            margin-bottom: 12px;
+        }
+
+        .payment-history-summary > div {
+            padding: 9px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg);
+        }
+
+        .payment-history-summary span {
+            display: block;
+            color: var(--text-muted);
+            font-size: 9px;
+            margin-bottom: 3px;
+        }
+
+        .payment-history-summary strong {
+            font-size: 12px;
+        }
+
+        .payment-history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .payment-history-empty {
+            padding: 16px 8px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 11px;
+        }
+
+        .payment-move {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg);
+        }
+
+        .payment-move-title {
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .payment-move-meta {
+            margin-top: 3px;
+            color: var(--text-muted);
+            font-size: 9px;
+            line-height: 1.45;
+        }
+
+        .payment-move-value {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .payment-move-value strong {
+            display: block;
+            font-size: 12px;
+        }
+
+        .payment-move-value.positive strong {
+            color: var(--primary);
+        }
+
+        .payment-move-value.negative strong {
+            color: var(--danger);
+        }
+
+        .btn-reversal {
+            margin-top: 5px;
+            border: 1px solid #fca5a5;
+            border-radius: 7px;
+            background: #fef2f2;
+            color: #991b1b;
+            padding: 5px 7px;
+            font-size: 9px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        body.dark-mode .btn-reversal {
+            background: #7f1d1d;
+            color: #fecaca;
+        }
+
+        .payment-history-note {
+            margin-top: 10px;
+            padding: 8px 10px;
+            border-radius: 9px;
+            background: #eff6ff;
+            color: #1e40af;
+            font-size: 9px;
+            line-height: 1.45;
+        }
+
+        body.dark-mode .payment-history-note {
+            background: #172554;
+            color: #bfdbfe;
+        }
+
+        @media (max-width: 520px) {
+            .payment-history-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .payment-move {
+                grid-template-columns: 1fr;
+            }
+
+            .payment-move-value {
+                text-align: left;
+            }
+        }
+
+        .btn-del {
+            background: none;
+            border: none;
+            color: var(--danger);
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .form-submit-row {
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+        }
+
+        .form-submit-row .btn-submit {
+            flex: 1;
+            width: auto;
+        }
+
+        .btn-cancel-edit {
+            display: none;
+            padding: 12px 16px;
+            background: var(--border);
+            color: var(--text-main);
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        #form-card.editing {
+            border: 2px solid var(--info);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+        }
+
+        #edit-hint {
+            display: none;
+            margin: -4px 0 12px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: #eff6ff;
+            color: #1e40af;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        body.dark-mode #edit-hint {
+            background: #172554;
+            color: #bfdbfe;
+        }

@@ -1,0 +1,732 @@
+/* Contas Fixas Mensais */
+        .recurring-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+
+        .recurring-header h2 {
+            margin-bottom: 0;
+        }
+
+        .recurring-count {
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: #f3e8ff;
+            color: #6b21a8;
+            font-size: 10px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .recurring-help {
+            color: var(--text-muted);
+            font-size: 11px;
+            line-height: 1.45;
+            margin-bottom: 10px;
+        }
+
+        .recurring-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .recurring-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg);
+        }
+
+        .recurring-main {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .recurring-title {
+            font-size: 13px;
+            font-weight: 700;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .recurring-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .btn-stop-recurring {
+            flex: 0 0 auto;
+            padding: 7px 9px;
+            border-radius: 8px;
+            border: 1px solid #fca5a5;
+            background: #fef2f2;
+            color: #991b1b;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        body.dark-mode .btn-stop-recurring {
+            background: #7f1d1d;
+            color: #fecaca;
+            border-color: #991b1b;
+        }
+
+        .recurring-empty {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 8px 0;
+            font-size: 12px;
+        }
+
+        @media (max-width: 520px) {
+            .recurring-item {
+                align-items: flex-start;
+            }
+        }
+
+        /* Contas e Carteiras */
+        .accounts-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+
+        .accounts-header h2 {
+            margin-bottom: 0;
+        }
+
+        .accounts-count {
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: #dcfce7;
+            color: #166534;
+            font-size: 10px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .accounts-help {
+            color: var(--text-muted);
+            font-size: 11px;
+            line-height: 1.45;
+            margin-bottom: 12px;
+        }
+
+        .account-form-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr 1fr;
+            gap: 8px;
+            align-items: end;
+            margin-bottom: 10px;
+        }
+
+        .account-form-grid .form-group {
+            margin-bottom: 0;
+        }
+
+        .btn-add-account {
+            width: 100%;
+            border: none;
+            border-radius: 10px;
+            background: var(--primary);
+            color: white;
+            padding: 10px 12px;
+            font-size: 11px;
+            font-weight: 800;
+            cursor: pointer;
+            margin-bottom: 12px;
+        }
+
+        .accounts-summary {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 7px;
+            margin-bottom: 10px;
+        }
+
+        .accounts-summary > div {
+            padding: 9px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg);
+        }
+
+        .accounts-summary span {
+            display: block;
+            color: var(--text-muted);
+            font-size: 9px;
+            margin-bottom: 3px;
+        }
+
+        .accounts-summary strong {
+            font-size: 13px;
+        }
+
+        .accounts-list {
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+        }
+
+        .account-item {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: center;
+            padding: 11px;
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            background: var(--bg);
+        }
+
+        .account-name {
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .account-meta {
+            margin-top: 3px;
+            color: var(--text-muted);
+            font-size: 9px;
+            line-height: 1.45;
+        }
+
+        .account-right {
+            text-align: right;
+        }
+
+        .account-balance {
+            display: block;
+            font-size: 14px;
+            font-weight: 900;
+            margin-bottom: 5px;
+        }
+
+        .account-actions {
+            display: flex;
+            gap: 5px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .account-actions button {
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            background: var(--card-bg);
+            color: var(--text-main);
+            padding: 5px 7px;
+            font-size: 9px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .account-actions .danger {
+            border-color: #fca5a5;
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        body.dark-mode .account-actions .danger {
+            background: #7f1d1d;
+            color: #fecaca;
+        }
+
+        .accounts-empty {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 11px;
+            padding: 10px 0;
+        }
+
+        .account-select-help {
+            margin-top: 4px;
+            color: var(--text-muted);
+            font-size: 9px;
+            line-height: 1.35;
+        }
+
+        .badge-account {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        body.dark-mode .badge-account {
+            background: #14532d;
+            color: #bbf7d0;
+        }
+
+        @media (max-width: 700px) {
+            .account-form-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .account-form-grid .form-group:first-child {
+                grid-column: 1 / -1;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .account-form-grid,
+            .accounts-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .account-form-grid .form-group:first-child {
+                grid-column: auto;
+            }
+
+            .account-item {
+                grid-template-columns: 1fr;
+            }
+
+            .account-right {
+                text-align: left;
+            }
+
+            .account-actions {
+                justify-content: flex-start;
+            }
+        }
+
+        /* Cartões de Crédito e Faturas */
+        .cards-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+
+        .cards-header h2 {
+            margin-bottom: 0;
+        }
+
+        .cards-count {
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: #dbeafe;
+            color: #1e40af;
+            font-size: 10px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .cards-help {
+            color: var(--text-muted);
+            font-size: 11px;
+            line-height: 1.45;
+            margin-bottom: 12px;
+        }
+
+        .card-register-grid {
+            display: grid;
+            grid-template-columns: 1.4fr 1fr 0.8fr 0.8fr;
+            gap: 8px;
+            align-items: end;
+            margin-bottom: 10px;
+        }
+
+        .card-register-grid .form-group {
+            margin-bottom: 0;
+        }
+
+        .btn-add-card {
+            width: 100%;
+            padding: 10px 12px;
+            border: none;
+            border-radius: 10px;
+            background: var(--info);
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-bottom: 12px;
+        }
+
+        .credit-card-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .credit-card-item {
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--bg);
+        }
+
+        .credit-card-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .credit-card-name {
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .credit-card-meta {
+            margin-top: 3px;
+            color: var(--text-muted);
+            font-size: 10px;
+            line-height: 1.45;
+        }
+
+        .credit-card-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .btn-card-action {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--card-bg);
+            color: var(--text-main);
+            padding: 6px 8px;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .btn-card-pay {
+            border-color: #6ee7b7;
+            background: #ecfdf5;
+            color: #047857;
+        }
+
+        .btn-card-stop {
+            border-color: #fca5a5;
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        body.dark-mode .btn-card-pay {
+            background: #064e3b;
+            color: #6ee7b7;
+        }
+
+        body.dark-mode .btn-card-stop {
+            background: #7f1d1d;
+            color: #fecaca;
+        }
+
+        .credit-card-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .credit-card-stat {
+            padding: 7px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--card-bg);
+        }
+
+        .credit-card-stat span {
+            display: block;
+            font-size: 9px;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+        }
+
+        .credit-card-stat strong {
+            font-size: 11px;
+        }
+
+        .credit-limit-bg {
+            height: 7px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: var(--border);
+            margin-top: 8px;
+        }
+
+        .invoice-tools {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .invoice-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 8px;
+            border-radius: 999px;
+            font-size: 9px;
+            font-weight: 800;
+        }
+
+        .invoice-status-open {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .invoice-status-partial {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .invoice-status-paid {
+            background: #d1fae5;
+            color: #047857;
+        }
+
+        .invoice-status-overdue {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .invoice-status-empty {
+            background: var(--border);
+            color: var(--text-muted);
+        }
+
+        .invoice-months {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding: 8px 0 2px;
+            scrollbar-width: thin;
+        }
+
+        .invoice-month-btn {
+            flex: 0 0 auto;
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            background: var(--card-bg);
+            color: var(--text-main);
+            padding: 7px 9px;
+            font-size: 9px;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: left;
+            line-height: 1.35;
+        }
+
+        .invoice-month-btn.active {
+            border-color: #60a5fa;
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        body.dark-mode .invoice-month-btn.active {
+            background: #172554;
+            color: #bfdbfe;
+        }
+
+        .invoice-details {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px dashed var(--border);
+            border-radius: 10px;
+            background: var(--card-bg);
+        }
+
+        .invoice-details.open {
+            display: block;
+        }
+
+        .invoice-detail-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .invoice-detail-head strong {
+            font-size: 12px;
+        }
+
+        .invoice-detail-list {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+
+        .invoice-line {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 8px;
+            align-items: center;
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            background: var(--bg);
+        }
+
+        .invoice-line-main {
+            min-width: 0;
+        }
+
+        .invoice-line-title {
+            font-size: 11px;
+            font-weight: 800;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .invoice-line-meta {
+            margin-top: 2px;
+            color: var(--text-muted);
+            font-size: 9px;
+            line-height: 1.4;
+        }
+
+        .invoice-line-values {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .invoice-line-values strong {
+            display: block;
+            font-size: 11px;
+        }
+
+        .invoice-line-values small {
+            display: block;
+            margin-top: 2px;
+            color: var(--text-muted);
+            font-size: 8px;
+        }
+
+        .invoice-line-pay {
+            margin-top: 4px;
+            border: 1px solid #6ee7b7;
+            border-radius: 7px;
+            background: #ecfdf5;
+            color: #047857;
+            padding: 4px 7px;
+            font-size: 8px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        body.dark-mode .invoice-line-pay {
+            background: #064e3b;
+            color: #6ee7b7;
+        }
+
+        .invoice-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .invoice-summary div {
+            padding: 7px;
+            border-radius: 8px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+        }
+
+        .invoice-summary span {
+            display: block;
+            color: var(--text-muted);
+            font-size: 8px;
+            margin-bottom: 2px;
+        }
+
+        .invoice-summary strong {
+            font-size: 10px;
+        }
+
+        @media (max-width: 520px) {
+            .invoice-line {
+                grid-template-columns: 1fr;
+            }
+
+            .invoice-line-values {
+                text-align: left;
+            }
+
+            .invoice-summary {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .credit-limit-fill {
+            height: 100%;
+            border-radius: 999px;
+            background: var(--info);
+        }
+
+        .cards-empty {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 12px;
+            padding: 8px 0;
+        }
+
+        #group-cartao {
+            display: none;
+        }
+
+        #fatura-preview {
+            display: none;
+            margin-top: 5px;
+            padding: 7px 9px;
+            border-radius: 8px;
+            background: #eff6ff;
+            color: #1e40af;
+            font-size: 10px;
+            line-height: 1.4;
+        }
+
+        body.dark-mode #fatura-preview {
+            background: #172554;
+            color: #bfdbfe;
+        }
+
+        @media (max-width: 700px) {
+            .card-register-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .credit-card-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 520px) {
+            .card-register-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .credit-card-top {
+                flex-direction: column;
+            }
+
+            .credit-card-actions {
+                justify-content: flex-start;
+            }
+        }
