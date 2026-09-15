@@ -66,6 +66,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
             margin-bottom: 12px;
         }
 
@@ -186,10 +188,19 @@
             color: var(--text-main);
         }
 
+        #busca-texto {
+            min-width: 0;
+        }
+
+        #filtro-status {
+            width: min(120px, 40%);
+            flex-shrink: 1;
+        }
+
         /* Dashboard */
         .dashboard {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             gap: 8px;
             margin-bottom: 16px;
         }
@@ -200,6 +211,7 @@
             border-radius: 12px;
             text-align: center;
             border: 1px solid var(--border);
+            min-width: 0;
         }
 
         .card h3 {
@@ -207,6 +219,7 @@
             text-transform: uppercase;
             color: var(--text-muted);
             margin-bottom: 4px;
+            overflow-wrap: anywhere;
         }
 
         .card p {
@@ -220,6 +233,18 @@
 
         .card.despesas p {
             color: var(--danger);
+        }
+
+        .card.pendentes p {
+            color: var(--warning);
+        }
+
+        .card.terceiros p {
+            color: var(--info);
+        }
+
+        .card.cartao p {
+            color: #8b5cf6;
         }
 
         /* Seções / Cards Genericos */
@@ -272,6 +297,28 @@
         .form-row {
             display: flex;
             gap: 8px;
+        }
+
+        .btn-cancel {
+            width: 100%;
+            margin-top: 8px;
+            padding: 10px;
+            background: var(--border);
+            color: var(--text-main);
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        @media (max-width: 520px) {
+            .dashboard {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .dashboard .saldo {
+                grid-column: span 2;
+            }
         }
 
         button.btn-submit {
@@ -372,6 +419,8 @@
             display: flex;
             align-items: center;
             gap: 6px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
         }
 
         .item-value {
@@ -383,6 +432,17 @@
             background: #d1fae5;
             color: #065f46;
             border: 1px solid #10b981;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-edit {
+            background: var(--border);
+            color: var(--text-main);
+            border: 1px solid var(--border);
             padding: 4px 8px;
             border-radius: 6px;
             font-size: 11px;
@@ -524,6 +584,8 @@
                 <select id="filtro-status" style="width: 120px;">
                     <option value="todos">Todos Status</option>
                     <option value="Pago">Pago</option>
+                    <option value="Pago por outra pessoa">Pago por outra pessoa</option>
+                    <option value="Compra no cartão">Fatura em aberto</option>
                     <option value="Pendente">Pendente</option>
                     <option value="Vencida">Vencida</option>
                 </select>
@@ -537,8 +599,20 @@
                 <p id="total-entradas">R$ 0,00</p>
             </div>
             <div class="card despesas">
-                <h3>Saídas</h3>
+                <h3>Saídas da Casa</h3>
                 <p id="total-saidas">R$ 0,00</p>
+            </div>
+            <div class="card pendentes">
+                <h3>Pendentes</h3>
+                <p id="total-pendentes">R$ 0,00</p>
+            </div>
+            <div class="card terceiros">
+                <h3>Pagas por Terceiros</h3>
+                <p id="total-terceiros">R$ 0,00</p>
+            </div>
+            <div class="card cartao">
+                <h3>Cartão em Aberto</h3>
+                <p id="total-cartao">R$ 0,00</p>
             </div>
             <div class="card saldo">
                 <h3>Saldo Real</h3>
@@ -570,7 +644,7 @@
 
         <!-- Formulário -->
         <div class="section-card">
-            <h2>Novo Lançamento</h2>
+            <h2 id="form-title">Novo Lançamento</h2>
             <form id="finance-form">
                 <div class="form-group">
                     <label for="descricao">Descrição</label>
@@ -600,9 +674,19 @@
                         <label for="status">Status</label>
                         <select id="status" required>
                             <option value="Pago">Pago / Recebido</option>
+                            <option value="Pago por outra pessoa">Pago por outra pessoa</option>
+                            <option value="Compra no cartão">Fatura em aberto</option>
                             <option value="Pendente">Pendente (A Pagar)</option>
                         </select>
                     </div>
+                </div>
+
+                <div class="form-group" id="group-responsavel">
+                    <label for="responsavel">Responsável pelo pagamento</label>
+                    <select id="responsavel">
+                        <option value="casa">Minha casa</option>
+                        <option value="outra_pessoa">Outra pessoa</option>
+                    </select>
                 </div>
 
                 <div class="form-row">
@@ -650,7 +734,8 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn-submit">Salvar Registro</button>
+                <button type="submit" class="btn-submit" id="submit-button">Salvar Registro</button>
+                <button type="button" class="btn-cancel" id="cancel-edit" style="display:none;" onclick="cancelarEdicao()">Cancelar edição</button>
             </form>
         </div>
 
@@ -683,6 +768,7 @@
         });
 
         let chartInstance = null;
+        let transacaoEmEdicao = null;
         const hojeStr = new Date().toISOString().split('T')[0];
         document.getElementById('data').value = hojeStr;
 
@@ -756,6 +842,87 @@
             return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : d;
         }
 
+        function impactaFinancasDaCasa(transacao) {
+            return transacao.tipo !== 'saida'
+                || (transacao.status !== 'Pago por outra pessoa' && transacao.status !== 'Compra no cartão');
+        }
+
+        function sincronizarResponsavel() {
+            const tipo = document.getElementById('tipo').value;
+            const status = document.getElementById('status').value;
+            const responsavel = document.getElementById('responsavel');
+            const grupo = document.getElementById('group-responsavel');
+            const outraPessoa = tipo === 'saida' && (status === 'Pago por outra pessoa' || responsavel.value === 'outra_pessoa');
+            grupo.style.display = tipo === 'saida' ? 'block' : 'none';
+            if (status === 'Pago por outra pessoa') responsavel.value = 'outra_pessoa';
+            if (tipo === 'entrada') responsavel.value = 'casa';
+            responsavel.dataset.terceiro = outraPessoa ? 'true' : 'false';
+        }
+
+        function alterarResponsavel() {
+            const tipo = document.getElementById('tipo').value;
+            const responsavel = document.getElementById('responsavel').value;
+            const status = document.getElementById('status');
+            if (tipo === 'saida' && responsavel === 'outra_pessoa') status.value = 'Pago por outra pessoa';
+            else if (tipo === 'saida' && status.value === 'Pago por outra pessoa') status.value = 'Pago';
+            sincronizarResponsavel();
+        }
+
+        function alterarFormaPagamento() {
+            toggleParcelas();
+            const pagamento = document.getElementById('pagamento').value;
+            const tipo = document.getElementById('tipo').value;
+            const status = document.getElementById('status');
+            if (tipo === 'saida' && pagamento === 'Cartão de Crédito' && (status.value === 'Pago' || status.value === 'Pendente')) {
+                status.value = 'Compra no cartão';
+            } else if (pagamento !== 'Cartão de Crédito' && status.value === 'Compra no cartão') {
+                status.value = 'Pendente';
+            }
+            sincronizarResponsavel();
+        }
+
+        function limparFormulario() {
+            document.getElementById('finance-form').reset();
+            document.getElementById('data').value = hojeStr;
+            document.getElementById('tipo').value = 'saida';
+            document.getElementById('status').value = 'Pendente';
+            document.getElementById('responsavel').value = 'casa';
+            document.getElementById('form-title').innerText = 'Novo Lançamento';
+            document.getElementById('submit-button').innerText = 'Salvar Registro';
+            document.getElementById('cancel-edit').style.display = 'none';
+            transacaoEmEdicao = null;
+            toggleParcelas();
+            sincronizarResponsavel();
+        }
+
+        function iniciarEdicao(transacao) {
+            transacaoEmEdicao = transacao;
+            document.getElementById('descricao').value = transacao.descricao || '';
+            document.getElementById('valor').value = transacao.valor || '';
+            document.getElementById('data').value = transacao.data || hojeStr;
+            document.getElementById('tipo').value = transacao.tipo || 'saida';
+            document.getElementById('status').value = transacao.status || 'Pendente';
+            document.getElementById('pagamento').value = transacao.pagamento || 'A Vista';
+            document.getElementById('categoria').value = transacao.categoria || 'Outros';
+            document.getElementById('recorrencia').value = transacao.recorrente || 'unica';
+            document.getElementById('responsavel').value = transacao.responsavel || (transacao.status === 'Pago por outra pessoa' ? 'outra_pessoa' : 'casa');
+            document.getElementById('form-title').innerText = 'Editar Lançamento';
+            document.getElementById('submit-button').innerText = 'Atualizar Registro';
+            document.getElementById('cancel-edit').style.display = 'block';
+            toggleParcelas();
+            sincronizarResponsavel();
+            document.getElementById('finance-form').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        async function iniciarEdicaoPorId(id) {
+            const transacao = await db.transacoes.get(id);
+            if (transacao) iniciarEdicao(transacao);
+        }
+
+        function cancelarEdicao() {
+            limparFormulario();
+        }
+
         async function definirMeta() {
             const metaAtual = await db.configs.get('meta_mensal');
             const valor = prompt("Defina seu teto de gastos mensal (R$):", metaAtual ? metaAtual.valor : "2000");
@@ -804,14 +971,20 @@
                 }
 
                 // Cálculos Dashboard
-                let entradas = 0, saidas = 0;
+                let entradas = 0, saidas = 0, pendentes = 0, terceiros = 0, cartao = 0;
                 filtradas.forEach(t => {
                     if (t.tipo === 'entrada') entradas += (t.valor || 0);
+                    else if (t.status === 'Pendente') pendentes += (t.valor || 0);
+                    else if (t.status === 'Pago por outra pessoa') terceiros += (t.valor || 0);
+                    else if (t.status === 'Compra no cartão') cartao += (t.valor || 0);
                     else saidas += (t.valor || 0);
                 });
 
                 document.getElementById('total-entradas').innerText = formatarMoeda(entradas);
                 document.getElementById('total-saidas').innerText = formatarMoeda(saidas);
+                document.getElementById('total-pendentes').innerText = formatarMoeda(pendentes);
+                document.getElementById('total-terceiros').innerText = formatarMoeda(terceiros);
+                document.getElementById('total-cartao').innerText = formatarMoeda(cartao);
                 const saldo = entradas - saidas;
                 const elSaldo = document.getElementById('saldo-atual');
                 elSaldo.innerText = formatarMoeda(saldo);
@@ -844,20 +1017,36 @@
 
                         let badgeStatus = t.status === 'Pago' || t.tipo === 'entrada'
                             ? `<span class="badge badge-pago">Pago</span>`
+                            : t.status === 'Pago por outra pessoa'
+                                ? `<span class="badge badge-pago">Pago por outra pessoa</span>`
+                            : t.status === 'Compra no cartão'
+                                ? `<span class="badge badge-card">Fatura em aberto</span>`
                             : (t.data < hojeStr ? `<span class="badge badge-vencido">Vencida</span>` : `<span class="badge badge-pendente">A Pagar</span>`);
 
                         const badgeFixo = t.recorrente === 'fixa' ? `<span class="badge badge-fixo">Fixa</span>` : '';
                         const infoParc = (t.pagamento === 'Cartão de Crédito' && t.totalParcelas > 1) ? `<span class="badge badge-card">${t.parcelaAtual || 1}/${t.totalParcelas}x</span>` : '';
-                        const btnPagar = (t.status === 'Pendente' && t.tipo === 'saida') ? `<button class="btn-pay" onclick="marcarComoPago(${t.id})">✓ Pagar</button>` : '';
+                        const responsavelLabel = t.tipo === 'saida' && (t.responsavel === 'outra_pessoa' || t.status === 'Pago por outra pessoa')
+                            ? 'Pago por outra pessoa'
+                            : 'Pago pela casa';
+                        const btnPagar = (t.status === 'Pendente' && t.tipo === 'saida')
+                            ? `<button class="btn-pay" onclick="marcarComoPago(${t.id})">✓ Pagar</button>
+                               <button class="btn-pay" onclick="marcarComoPago(${t.id}, true)">✓ Pago por outra pessoa</button>`
+                            : (t.status === 'Compra no cartão' && t.tipo === 'saida')
+                                ? `<button class="btn-pay" onclick="marcarFaturaComoPaga(${t.id})">✓ Pagar fatura</button>`
+                            : (t.tipo === 'saida' && t.status !== 'Pendente')
+                                ? `<button class="btn-pay" onclick="desfazerPagamento(${t.id})">↶ Desfazer</button>`
+                                : '';
+                        const btnEditar = `<button class="btn-edit" onclick="iniciarEdicaoPorId(${t.id})">Editar</button>`;
 
                         item.innerHTML = `
                         <div class="item-info">
                             <span class="item-title">${t.descricao} ${badgeStatus} ${badgeFixo} ${infoParc}</span>
-                            <span class="item-sub">${formatarDataBR(t.data)} • ${t.categoria} (${t.pagamento})</span>
+                            <span class="item-sub">${formatarDataBR(t.data)} • ${t.categoria} (${t.pagamento}) • ${responsavelLabel}</span>
                         </div>
                         <div class="item-actions">
                             <span class="item-value" style="color:${cor};">${sinal} ${formatarMoeda(t.valor)}</span>
                             ${btnPagar}
+                            ${btnEditar}
                             <button class="btn-del" onclick="deletarRegistro(${t.id})">✕</button>
                         </div>
                     `;
@@ -872,7 +1061,7 @@
         }
 
         function atualizarGrafico(transacoes) {
-            const despesas = transacoes.filter(t => t.tipo === 'saida');
+            const despesas = transacoes.filter(t => t.tipo === 'saida' && impactaFinancasDaCasa(t));
             const catMap = {};
             despesas.forEach(t => catMap[t.categoria] = (catMap[t.categoria] || 0) + t.valor);
 
@@ -897,13 +1086,42 @@
                 const valorTotal = parseFloat(document.getElementById('valor').value);
                 const dataInput = document.getElementById('data').value;
                 const tipo = document.getElementById('tipo').value;
-                const status = document.getElementById('status').value;
+                let status = document.getElementById('status').value;
                 const pagamento = document.getElementById('pagamento').value;
                 const categoria = document.getElementById('categoria').value;
                 const recorrencia = document.getElementById('recorrencia').value;
+                const responsavel = tipo === 'saida' ? document.getElementById('responsavel').value : 'casa';
+
+                if (!desc.trim() || !Number.isFinite(valorTotal) || valorTotal <= 0 || !dataInput) {
+                    showToast("Preencha uma descrição e um valor maior que zero.");
+                    return;
+                }
+
+                if (tipo === 'entrada' && status === 'Pago por outra pessoa') status = 'Pago';
+                if (tipo === 'saida' && responsavel === 'outra_pessoa') status = 'Pago por outra pessoa';
+
+                if (transacaoEmEdicao) {
+                    await db.transacoes.update(transacaoEmEdicao.id, {
+                        descricao: desc.trim(),
+                        valor: Math.round(valorTotal * 100) / 100,
+                        data: dataInput,
+                        tipo,
+                        status,
+                        categoria,
+                        pagamento,
+                        recorrente: recorrencia,
+                        responsavel
+                    });
+                    showToast("Lançamento atualizado!");
+                    const mesRegistro = dataInput.substring(0, 7);
+                    if (filtroMesInput.value !== mesRegistro) filtroMesInput.value = mesRegistro;
+                    limparFormulario();
+                    await carregarDados();
+                    return;
+                }
 
                 let numParc = pagamento === 'Cartão de Crédito' ? (parseInt(document.getElementById('parcelas').value) || 1) : 1;
-                const valParc = parseFloat((valorTotal / numParc).toFixed(2));
+                const valorEmCentavos = Math.round(valorTotal * 100);
                 const grupoId = Date.now();
 
                 const dataBase = new Date(dataInput + 'T00:00:00');
@@ -912,15 +1130,17 @@
                     const d = new Date(dataBase);
                     d.setMonth(d.getMonth() + i);
                     const dataStr = d.toISOString().split('T')[0];
+                    const centavosParcela = Math.floor(valorEmCentavos / numParc) + (i < valorEmCentavos % numParc ? 1 : 0);
 
                     await db.transacoes.add({
                         descricao: desc,
-                        valor: valParc,
+                        valor: centavosParcela / 100,
                         data: dataStr,
                         tipo: tipo,
                         status: status,
                         categoria: categoria,
                         pagamento: pagamento,
+                        responsavel: responsavel,
                         parcelaAtual: i + 1,
                         totalParcelas: numParc,
                         compraGrupoId: grupoId,
@@ -928,8 +1148,7 @@
                     });
                 }
 
-                document.getElementById('descricao').value = '';
-                document.getElementById('valor').value = '';
+                limparFormulario();
                 showToast("Lançamento salvo com sucesso!");
 
                 // Atualizar o mês do filtro para o mês do registro adicionado caso seja diferente
@@ -948,11 +1167,33 @@
         document.getElementById('filtro-mes').addEventListener('change', carregarDados);
         document.getElementById('busca-texto').addEventListener('input', carregarDados);
         document.getElementById('filtro-status').addEventListener('change', carregarDados);
+        document.getElementById('tipo').addEventListener('change', sincronizarResponsavel);
+        document.getElementById('status').addEventListener('change', sincronizarResponsavel);
+        document.getElementById('responsavel').addEventListener('change', alterarResponsavel);
+        document.getElementById('pagamento').addEventListener('change', alterarFormaPagamento);
 
-        async function marcarComoPago(id) {
-            await db.transacoes.update(id, { status: 'Pago' });
-            showToast("Conta marcada como Paga!");
+        async function marcarComoPago(id, pagoPorOutraPessoa = false) {
+            const status = pagoPorOutraPessoa ? 'Pago por outra pessoa' : 'Pago';
+            await db.transacoes.update(id, {
+                status,
+                responsavel: pagoPorOutraPessoa ? 'outra_pessoa' : 'casa'
+            });
+            showToast(pagoPorOutraPessoa ? "Conta registrada como paga por outra pessoa!" : "Conta marcada como Paga!");
             carregarDados();
+        }
+
+        async function desfazerPagamento(id) {
+            const transacao = await db.transacoes.get(id);
+            const status = transacao && transacao.pagamento === 'Cartão de Crédito' ? 'Compra no cartão' : 'Pendente';
+            await db.transacoes.update(id, { status, responsavel: 'casa' });
+            showToast(status === 'Compra no cartão' ? "Fatura reaberta." : "Pagamento desfeito. Conta voltou para pendente.");
+            await carregarDados();
+        }
+
+        async function marcarFaturaComoPaga(id) {
+            await db.transacoes.update(id, { status: 'Pago', responsavel: 'casa' });
+            showToast("Fatura do cartão marcada como paga!");
+            await carregarDados();
         }
 
         async function deletarRegistro(id) {
@@ -965,9 +1206,9 @@
 
         async function exportarCSV() {
             const dados = await db.transacoes.toArray();
-            let csv = "ID,Descricao,Valor,Data,Tipo,Status,Categoria,Pagamento\n";
+            let csv = "ID,Descricao,Valor,Data,Tipo,Status,Responsavel,Categoria,Pagamento\n";
             dados.forEach(d => {
-                csv += `${d.id},"${d.descricao}",${d.valor},${d.data},${d.tipo},${d.status},${d.categoria},${d.pagamento}\n`;
+                csv += `${d.id},"${d.descricao}",${d.valor},${d.data},${d.tipo},${d.status},${d.responsavel || 'casa'},${d.categoria},${d.pagamento}\n`;
             });
             const blob = new Blob([csv], { type: 'text/csv' });
             const link = document.createElement('a');
@@ -1028,6 +1269,7 @@
         }
 
         // Inicialização
+        sincronizarResponsavel();
         checarPIN();
         carregarDados();
     </script>
