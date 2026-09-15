@@ -375,6 +375,8 @@
         .item-actions {
             display: flex;
             align-items: center;
+            justify-content: flex-end;
+            flex-wrap: wrap;
             gap: 6px;
         }
 
@@ -394,6 +396,17 @@
             cursor: pointer;
         }
 
+        .btn-edit {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #60a5fa;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
         .btn-del {
             background: none;
             border: none;
@@ -402,6 +415,51 @@
             font-size: 16px;
             cursor: pointer;
             padding: 4px;
+        }
+
+        .form-submit-row {
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+        }
+
+        .form-submit-row .btn-submit {
+            flex: 1;
+            width: auto;
+        }
+
+        .btn-cancel-edit {
+            display: none;
+            padding: 12px 16px;
+            background: var(--border);
+            color: var(--text-main);
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        #form-card.editing {
+            border: 2px solid var(--info);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.08);
+        }
+
+        #edit-hint {
+            display: none;
+            margin: -4px 0 12px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: #eff6ff;
+            color: #1e40af;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        body.dark-mode #edit-hint {
+            background: #172554;
+            color: #bfdbfe;
         }
 
         /* Backup & Export */
@@ -580,6 +638,53 @@
             white-space: nowrap;
         }
 
+        .realtime-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin-left: auto;
+            padding: 3px 8px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            font-size: 10px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .realtime-status.online {
+            color: #047857;
+            border-color: #6ee7b7;
+            background: #ecfdf5;
+        }
+
+        .realtime-status.connecting {
+            color: #92400e;
+            border-color: #fcd34d;
+            background: #fffbeb;
+        }
+
+        .realtime-status.offline {
+            color: #991b1b;
+            border-color: #fca5a5;
+            background: #fef2f2;
+        }
+
+        body.dark-mode .realtime-status.online {
+            color: #6ee7b7;
+            background: #064e3b;
+        }
+
+        body.dark-mode .realtime-status.connecting {
+            color: #fde68a;
+            background: #78350f;
+        }
+
+        body.dark-mode .realtime-status.offline {
+            color: #fecaca;
+            background: #7f1d1d;
+        }
+
         /* Lock Screen Overlay */
         #lock-screen {
             position: fixed;
@@ -644,6 +749,7 @@
             <div class="session-info">
                 <span>Conectado como:</span>
                 <strong class="session-email" id="user-email">-</strong>
+                <span class="realtime-status connecting" id="realtime-status">🟡 Conectando...</span>
             </div>
         </div>
 
@@ -719,8 +825,9 @@
         </div>
 
         <!-- Formulário -->
-        <div class="section-card">
-            <h2>Novo Lançamento</h2>
+        <div class="section-card" id="form-card">
+            <h2 id="form-title">Novo Lançamento</h2>
+            <div id="edit-hint"></div>
             <form id="finance-form">
                 <div class="form-group">
                     <label for="descricao">Descrição</label>
@@ -800,7 +907,11 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn-submit">Salvar Registro</button>
+                <div class="form-submit-row">
+                    <button type="submit" class="btn-submit" id="form-submit-btn">Salvar Registro</button>
+                    <button type="button" class="btn-cancel-edit" id="btn-cancelar-edicao"
+                        onclick="cancelarEdicao()">Cancelar</button>
+                </div>
             </form>
         </div>
 
@@ -840,6 +951,164 @@
         let usuarioAtual = null;
         let appInicializado = false;
 
+        // Supabase Realtime (Broadcast privado por usuário)
+        let realtimeChannel = null;
+        let realtimeUsuarioId = null;
+        let realtimeRefreshTimer = null;
+        let realtimeParando = false;
+
+        function atualizarStatusRealtime(tipo, texto) {
+            const el = document.getElementById('realtime-status');
+            if (!el) return;
+
+            el.classList.remove('online', 'connecting', 'offline');
+            el.classList.add(tipo);
+            el.textContent = texto;
+        }
+
+        function agendarAtualizacaoRealtime() {
+            if (!usuarioAtual) return;
+
+            if (realtimeRefreshTimer) {
+                clearTimeout(realtimeRefreshTimer);
+            }
+
+            realtimeRefreshTimer = setTimeout(async () => {
+                realtimeRefreshTimer = null;
+
+                // Se o carregamento normal ainda estiver acontecendo, tenta novamente
+                // logo depois para não perder uma alteração recebida pela WebSocket.
+                if (carregandoDados) {
+                    agendarAtualizacaoRealtime();
+                    return;
+                }
+
+                try {
+                    await carregarDados();
+                } catch (err) {
+                    console.error('Erro ao atualizar dados recebidos em tempo real:', err);
+                }
+            }, 250);
+        }
+
+        function tratarEventoRealtime(payload) {
+            // Não confiamos nos dados do payload para montar a tela.
+            // Ao receber qualquer alteração autorizada no tópico privado do usuário,
+            // buscamos novamente os dados via API/RLS. Isso mantém o dashboard consistente.
+            console.log('Alteração em tempo real recebida:', payload?.event || payload?.type || 'CHANGE');
+
+            // Se a linha que estava aberta em edição for excluída em outro dispositivo,
+            // fecha o modo de edição local.
+            const registroAntigo = payload?.payload?.old_record || payload?.old || null;
+            const registroNovo = payload?.payload?.record || payload?.new || null;
+            const idAlterado = Number(registroNovo?.id ?? registroAntigo?.id ?? 0);
+
+            if (edicaoId !== null && idAlterado && Number(edicaoId) === idAlterado) {
+                const evento = String(payload?.event || payload?.type || '').toUpperCase();
+                if (evento === 'DELETE') {
+                    cancelarEdicao(false);
+                    showToast('O lançamento em edição foi excluído em outro dispositivo.');
+                }
+            }
+
+            agendarAtualizacaoRealtime();
+        }
+
+        async function pararRealtime() {
+            if (realtimeParando) return;
+            realtimeParando = true;
+
+            try {
+                if (realtimeRefreshTimer) {
+                    clearTimeout(realtimeRefreshTimer);
+                    realtimeRefreshTimer = null;
+                }
+
+                if (realtimeChannel) {
+                    const canalAnterior = realtimeChannel;
+                    realtimeChannel = null;
+                    realtimeUsuarioId = null;
+
+                    try {
+                        await supabaseClient.removeChannel(canalAnterior);
+                    } catch (err) {
+                        console.warn('Não foi possível remover o canal Realtime anterior:', err);
+                    }
+                } else {
+                    realtimeUsuarioId = null;
+                }
+            } finally {
+                realtimeParando = false;
+            }
+        }
+
+        async function iniciarRealtime(session) {
+            if (!usuarioAtual || !session) return;
+
+            const userId = usuarioAtual.id;
+
+            // Evita criar dois canais para a mesma sessão.
+            if (realtimeChannel && realtimeUsuarioId === userId) {
+                try {
+                    await supabaseClient.realtime.setAuth(session.access_token);
+                } catch (err) {
+                    console.warn('Não foi possível renovar a autenticação do Realtime:', err);
+                }
+                return;
+            }
+
+            atualizarStatusRealtime('connecting', '🟡 Conectando...');
+
+            await pararRealtime();
+
+            if (!usuarioAtual || usuarioAtual.id !== userId) return;
+
+            try {
+                // Realtime Authorization usa o JWT da sessão atual.
+                await supabaseClient.realtime.setAuth(session.access_token);
+
+                const topic = `financeiro:${userId}`;
+
+                const canal = supabaseClient.channel(topic, {
+                    config: {
+                        private: true
+                    }
+                });
+
+                canal
+                    .on('broadcast', { event: 'INSERT' }, tratarEventoRealtime)
+                    .on('broadcast', { event: 'UPDATE' }, tratarEventoRealtime)
+                    .on('broadcast', { event: 'DELETE' }, tratarEventoRealtime)
+                    .subscribe((status, err) => {
+                        if (canal !== realtimeChannel) return;
+
+                        if (status === 'SUBSCRIBED') {
+                            atualizarStatusRealtime('online', '🟢 Tempo real ativo');
+                            console.log('Supabase Realtime conectado:', topic);
+                            return;
+                        }
+
+                        if (
+                            status === 'CHANNEL_ERROR' ||
+                            status === 'TIMED_OUT' ||
+                            status === 'CLOSED'
+                        ) {
+                            atualizarStatusRealtime('offline', '🔴 Tempo real offline');
+
+                            if (err) {
+                                console.error('Erro no Supabase Realtime:', err);
+                            }
+                        }
+                    });
+
+                realtimeChannel = canal;
+                realtimeUsuarioId = userId;
+            } catch (err) {
+                console.error('Erro ao iniciar Supabase Realtime:', err);
+                atualizarStatusRealtime('offline', '🔴 Tempo real offline');
+            }
+        }
+
         function mensagemLogin(texto, erro = true) {
             const el = document.getElementById('auth-message');
             el.textContent = texto || '';
@@ -868,11 +1137,20 @@
                 await carregarDados();
                 await verificarDadosLocaisParaMigracao();
             }
+
+            // Inicia o canal privado do usuário ou atualiza seu JWT
+            // quando o Supabase renovar a sessão.
+            await iniciarRealtime(session);
         }
 
         function mostrarTelaLogin() {
+            void pararRealtime();
+            atualizarStatusRealtime('offline', '🔴 Desconectado');
+
             usuarioAtual = null;
             appInicializado = false;
+            edicaoId = null;
+            transacaoEditando = null;
             document.getElementById('app-container').style.display = 'none';
             document.getElementById('lock-screen').style.display = 'none';
             document.getElementById('auth-screen').style.display = 'flex';
@@ -963,6 +1241,8 @@
 
         let chartInstance = null;
         let carregandoDados = false;
+        let edicaoId = null;
+        let transacaoEditando = null;
 
         function dataLocalISO(data = new Date()) {
             const ano = data.getFullYear();
@@ -1088,7 +1368,16 @@
 
         function toggleParcelas() {
             const pagamento = document.getElementById('pagamento').value;
-            document.getElementById('group-parcelas').style.display =
+            const grupoParcelas = document.getElementById('group-parcelas');
+
+            // Ao editar, alteramos apenas o lançamento/parcela selecionado.
+            // O número de parcelas do grupo original é preservado no banco.
+            if (edicaoId !== null) {
+                grupoParcelas.style.display = 'none';
+                return;
+            }
+
+            grupoParcelas.style.display =
                 pagamento === 'Cartão de Crédito' ? 'block' : 'none';
         }
 
@@ -1399,7 +1688,8 @@
                         <div class="item-actions">
                             <span class="item-value" style="color:${cor};">${sinal} ${formatarMoeda(t.valor)}</span>
                             ${btnPagar}
-                            <button class="btn-del" onclick="deletarRegistro(${t.id})">✕</button>
+                            <button class="btn-edit" onclick="editarRegistro(${t.id})" title="Editar lançamento">✏️ Editar</button>
+                            <button class="btn-del" onclick="deletarRegistro(${t.id})" title="Excluir lançamento">✕</button>
                         </div>
                     `;
 
@@ -1467,6 +1757,106 @@
             });
         }
 
+        async function editarRegistro(id) {
+            if (!usuarioAtual) {
+                showToast("Sua sessão expirou. Entre novamente.");
+                return;
+            }
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('transacoes')
+                    .select('*')
+                    .eq('id', id)
+                    .eq('user_id', usuarioAtual.id)
+                    .single();
+
+                if (error) throw error;
+
+                const t = normalizarTransacaoBanco(data);
+
+                edicaoId = t.id;
+                transacaoEditando = t;
+
+                document.getElementById('descricao').value = t.descricao;
+                document.getElementById('valor').value = Number(t.valor).toFixed(2);
+                document.getElementById('data').value = t.data || hojeStr;
+                document.getElementById('tipo').value = t.tipo || 'saida';
+                document.getElementById('status').value = t.status || 'Pendente';
+                document.getElementById('pagamento').value = t.pagamento || 'A Vista';
+                document.getElementById('categoria').value = t.categoria || 'Outros';
+                document.getElementById('recorrencia').value = t.recorrente || 'unica';
+
+                const formCard = document.getElementById('form-card');
+                const formTitle = document.getElementById('form-title');
+                const submitBtn = document.getElementById('form-submit-btn');
+                const cancelBtn = document.getElementById('btn-cancelar-edicao');
+                const hint = document.getElementById('edit-hint');
+
+                formCard.classList.add('editing');
+                formTitle.textContent = '✏️ Editar Lançamento';
+                submitBtn.textContent = 'Salvar Alterações';
+                cancelBtn.style.display = 'block';
+
+                if (t.totalParcelas > 1) {
+                    hint.textContent =
+                        `Este lançamento é a parcela ${t.parcelaAtual}/${t.totalParcelas}. ` +
+                        `A edição abaixo altera somente esta parcela; as demais continuam como estão.`;
+                } else {
+                    hint.textContent =
+                        'Altere os campos desejados e clique em “Salvar Alterações”.';
+                }
+
+                hint.style.display = 'block';
+                toggleParcelas();
+
+                formCard.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+
+                setTimeout(() => {
+                    document.getElementById('descricao').focus();
+                }, 350);
+            } catch (err) {
+                console.error("Erro ao abrir lançamento para edição:", err);
+                showToast("Não foi possível carregar o lançamento para edição.");
+            }
+        }
+
+        function cancelarEdicao(mostrarAviso = true) {
+            const estavaEditando = edicaoId !== null;
+
+            edicaoId = null;
+            transacaoEditando = null;
+
+            const form = document.getElementById('finance-form');
+            form.reset();
+
+            document.getElementById('data').value = hojeStr;
+            document.getElementById('tipo').value = 'saida';
+            document.getElementById('status').value = 'Pago';
+            document.getElementById('pagamento').value = 'A Vista';
+            document.getElementById('categoria').value = 'Alimentação';
+            document.getElementById('recorrencia').value = 'unica';
+            document.getElementById('parcelas').value = '1';
+
+            document.getElementById('form-card').classList.remove('editing');
+            document.getElementById('form-title').textContent = 'Novo Lançamento';
+            document.getElementById('form-submit-btn').textContent = 'Salvar Registro';
+            document.getElementById('btn-cancelar-edicao').style.display = 'none';
+
+            const hint = document.getElementById('edit-hint');
+            hint.textContent = '';
+            hint.style.display = 'none';
+
+            toggleParcelas();
+
+            if (mostrarAviso && estavaEditando) {
+                showToast("Edição cancelada.");
+            }
+        }
+
         document.getElementById('finance-form').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -1476,6 +1866,8 @@
             }
 
             const submitBtn = e.currentTarget.querySelector('button[type="submit"]');
+            const estavaEditando = edicaoId !== null;
+            const idEmEdicao = edicaoId;
 
             try {
                 const desc = document.getElementById('descricao').value.trim();
@@ -1492,6 +1884,49 @@
                     return;
                 }
 
+                submitBtn.disabled = true;
+
+                // ====================================================
+                // MODO EDIÇÃO
+                // Atualiza somente o registro/parcela selecionado.
+                // Metadados de parcelamento são preservados.
+                // ====================================================
+                if (estavaEditando) {
+                    submitBtn.textContent = 'Salvando alterações...';
+
+                    const atualizacao = {
+                        descricao: desc,
+                        valor: Number(valorTotal.toFixed(2)),
+                        data: dataInput,
+                        tipo,
+                        status,
+                        categoria,
+                        pagamento,
+                        recorrente: recorrencia
+                    };
+
+                    const { error } = await supabaseClient
+                        .from('transacoes')
+                        .update(atualizacao)
+                        .eq('id', idEmEdicao)
+                        .eq('user_id', usuarioAtual.id);
+
+                    if (error) throw error;
+
+                    const mesRegistro = dataInput.substring(0, 7);
+                    if (filtroMesInput.value !== mesRegistro) {
+                        filtroMesInput.value = mesRegistro;
+                    }
+
+                    cancelarEdicao(false);
+                    await carregarDados();
+                    showToast("Lançamento atualizado com sucesso!");
+                    return;
+                }
+
+                // ====================================================
+                // MODO NOVO LANÇAMENTO
+                // ====================================================
                 const numParc =
                     pagamento === 'Cartão de Crédito'
                         ? (parseInt(document.getElementById('parcelas').value, 10) || 1)
@@ -1528,7 +1963,6 @@
                     });
                 }
 
-                submitBtn.disabled = true;
                 submitBtn.textContent = 'Salvando...';
 
                 const { error } = await supabaseClient
@@ -1549,17 +1983,58 @@
                 await carregarDados();
                 showToast("Lançamento salvo na nuvem!");
             } catch (err) {
-                console.error("Erro ao salvar lançamento:", err);
-                showToast("Erro ao salvar lançamento no banco.");
+                console.error(
+                    estavaEditando ? "Erro ao editar lançamento:" : "Erro ao salvar lançamento:",
+                    err
+                );
+
+                showToast(
+                    estavaEditando
+                        ? "Erro ao atualizar o lançamento."
+                        : "Erro ao salvar lançamento no banco."
+                );
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Salvar Registro';
+
+                if (edicaoId !== null) {
+                    submitBtn.textContent = 'Salvar Alterações';
+                } else {
+                    submitBtn.textContent = 'Salvar Registro';
+                }
             }
         });
 
         document.getElementById('filtro-mes').addEventListener('change', carregarDados);
         document.getElementById('busca-texto').addEventListener('input', carregarDados);
         document.getElementById('filtro-status').addEventListener('change', carregarDados);
+
+        // Fallback de consistência: se o navegador suspender a WebSocket em segundo plano,
+        // ao voltar para a aba ou recuperar a internet sincronizamos novamente.
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && usuarioAtual) {
+                agendarAtualizacaoRealtime();
+            }
+        });
+
+        window.addEventListener('online', () => {
+            if (!usuarioAtual) return;
+
+            atualizarStatusRealtime('connecting', '🟡 Reconectando...');
+
+            supabaseClient.auth.getSession().then(({ data, error }) => {
+                if (error || !data?.session) {
+                    atualizarStatusRealtime('offline', '🔴 Tempo real offline');
+                    return;
+                }
+
+                void iniciarRealtime(data.session);
+                agendarAtualizacaoRealtime();
+            });
+        });
+
+        window.addEventListener('offline', () => {
+            atualizarStatusRealtime('offline', '🔴 Sem internet');
+        });
 
         async function marcarComoPago(id) {
             try {
@@ -1590,6 +2065,10 @@
                     .eq('user_id', usuarioAtual.id);
 
                 if (error) throw error;
+
+                if (edicaoId === id) {
+                    cancelarEdicao(false);
+                }
 
                 await carregarDados();
                 showToast("Registro excluído.");
