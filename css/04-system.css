@@ -158,6 +158,25 @@
             color: var(--danger);
         }
 
+        .auth-switch {
+            margin-top: 6px;
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .auth-switch button {
+            background: none;
+            border: 0;
+            padding: 0;
+            margin-left: 4px;
+            color: var(--primary);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
         .session-info {
             width: 100%;
             display: flex;

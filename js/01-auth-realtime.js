@@ -182,8 +182,43 @@
             if (msg.includes('invalid login credentials')) return 'E-mail ou senha incorretos.';
             if (msg.includes('email not confirmed')) return 'Seu e-mail ainda não foi confirmado.';
             if (msg.includes('too many requests')) return 'Muitas tentativas. Aguarde um pouco e tente novamente.';
-            return 'Não foi possível entrar. Verifique seus dados e tente novamente.';
+            if (msg.includes('user already registered')) return 'Este e-mail já possui uma conta. Faça login.';
+            if (msg.includes('password should be at least')) return 'A senha precisa ter pelo menos 6 caracteres.';
+            if (msg.includes('unable to validate email address')) return 'E-mail inválido.';
+            return 'Não foi possível concluir. Verifique seus dados e tente novamente.';
         }
+
+        let authMode = 'login';
+
+        function alternarModoAuth(modo) {
+            authMode = modo;
+
+            const subtitulo = document.getElementById('auth-subtitle');
+            const senha = document.getElementById('auth-password');
+            const submit = document.getElementById('auth-submit');
+            const switchText = document.getElementById('auth-switch-text');
+            const toggleBtn = document.getElementById('auth-toggle-mode');
+
+            mensagemLogin('', false);
+
+            if (modo === 'signup') {
+                subtitulo.textContent = 'Crie sua conta para começar seu controle financeiro.';
+                senha.autocomplete = 'new-password';
+                submit.textContent = 'Criar conta';
+                switchText.textContent = 'Já tem uma conta?';
+                toggleBtn.textContent = 'Entrar';
+            } else {
+                subtitulo.textContent = 'Entre com seu e-mail e senha para acessar seus dados.';
+                senha.autocomplete = 'current-password';
+                submit.textContent = 'Entrar';
+                switchText.textContent = 'Ainda não tem conta?';
+                toggleBtn.textContent = 'Criar conta';
+            }
+        }
+
+        document.getElementById('auth-toggle-mode').addEventListener('click', () => {
+            alternarModoAuth(authMode === 'login' ? 'signup' : 'login');
+        });
 
         async function mostrarAplicativo(session) {
             if (!session || !session.user) return;
@@ -232,27 +267,49 @@
             const email = document.getElementById('auth-email').value.trim();
             const password = document.getElementById('auth-password').value;
             const btn = document.getElementById('auth-submit');
+            const textoOriginal = authMode === 'signup' ? 'Criar conta' : 'Entrar';
 
-            mensagemLogin('Entrando...', false);
             btn.disabled = true;
-            btn.textContent = 'Entrando...';
 
             try {
-                const { data, error } = await supabaseClient.auth.signInWithPassword({
-                    email,
-                    password
-                });
+                if (authMode === 'signup') {
+                    btn.textContent = 'Criando conta...';
+                    mensagemLogin('Criando conta...', false);
 
-                if (error) throw error;
+                    const { data, error } = await supabaseClient.auth.signUp({
+                        email,
+                        password
+                    });
 
-                mensagemLogin('', false);
-                await mostrarAplicativo(data.session);
+                    if (error) throw error;
+
+                    if (data.session) {
+                        mensagemLogin('', false);
+                        await mostrarAplicativo(data.session);
+                    } else {
+                        mensagemLogin('Conta criada! Verifique seu e-mail para confirmar antes de entrar.', false);
+                        alternarModoAuth('login');
+                    }
+                } else {
+                    btn.textContent = 'Entrando...';
+                    mensagemLogin('Entrando...', false);
+
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({
+                        email,
+                        password
+                    });
+
+                    if (error) throw error;
+
+                    mensagemLogin('', false);
+                    await mostrarAplicativo(data.session);
+                }
             } catch (err) {
-                console.error('Erro no login:', err);
+                console.error('Erro na autenticação:', err);
                 mensagemLogin(traduzirErroLogin(err.message));
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Entrar';
+                btn.textContent = textoOriginal;
             }
         });
 

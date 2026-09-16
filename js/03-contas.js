@@ -172,6 +172,10 @@ function obterContaPorId(id) {
             movimentosEl.textContent =
                 String(movimentosContasVinculados || 0);
 
+            if (typeof atualizarResumoPatrimonialDashboard === 'function') {
+                atualizarResumoPatrimonialDashboard();
+            }
+
             list.innerHTML = '';
 
             if (ativas.length === 0) {

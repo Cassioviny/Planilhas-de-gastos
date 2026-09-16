@@ -382,6 +382,11 @@ function formatarMesAno(dataISO) {
 
             const ativos = cartoesCache.filter(c => c.ativo !== false);
             count.textContent = `${ativos.length} ativo(s)`;
+
+            if (typeof atualizarResumoPatrimonialDashboard === 'function') {
+                atualizarResumoPatrimonialDashboard();
+            }
+
             list.innerHTML = '';
 
             if (ativos.length === 0) {

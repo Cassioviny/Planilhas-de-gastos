@@ -1,4 +1,4 @@
-const CACHE_NAME = 'financas-v15';
+const CACHE_NAME = 'financas-v16';
 
 const STATIC_ASSETS = [
   "./",
@@ -9,6 +9,7 @@ const STATIC_ASSETS = [
   "./css/02-components.css",
   "./css/03-features.css",
   "./css/04-system.css",
+  "./css/05-dashboard2.css",
   "./js/01-auth-realtime.js",
   "./js/02-core-ui.js",
   "./js/03-contas.js",

@@ -1,3 +1,462 @@
+
+        let dashboardUltimoContexto = null;
+
+        function formatarMesDashboard(mesAno) {
+            if (!mesAno || !/^\d{4}-\d{2}$/.test(mesAno)) {
+                return 'Mês selecionado';
+            }
+
+            const [ano, mes] = mesAno.split('-').map(Number);
+            const data = new Date(ano, mes - 1, 1, 12, 0, 0);
+
+            const texto = new Intl.DateTimeFormat('pt-BR', {
+                month: 'long',
+                year: 'numeric'
+            }).format(data);
+
+            return texto.charAt(0).toUpperCase() + texto.slice(1);
+        }
+
+        function mesAnteriorDashboard(mesAno) {
+            const base = /^\d{4}-\d{2}$/.test(mesAno || '')
+                ? mesAno
+                : mesAtual;
+
+            const [ano, mes] = base.split('-').map(Number);
+            const data = new Date(ano, mes - 2, 1, 12, 0, 0);
+
+            return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`;
+        }
+
+        function calcularFluxosDashboard(transacoes) {
+            let recebido = 0;
+            let aReceber = 0;
+            let pago = 0;
+            let aPagar = 0;
+
+            (transacoes || []).forEach(t => {
+                const valor = Number(t.valor || 0);
+                const liquidado = Math.max(
+                    0,
+                    Math.min(valor, Number(t.valorPago || 0))
+                );
+                const restante = Math.max(0, valor - liquidado);
+
+                if (t.tipo === 'entrada') {
+                    recebido += liquidado;
+                    aReceber += restante;
+                } else {
+                    pago += liquidado;
+                    aPagar += restante;
+                }
+            });
+
+            return {
+                recebido,
+                aReceber,
+                pago,
+                aPagar,
+                saldoDisponivel: recebido - pago,
+                saldoProjetado: recebido - pago + aReceber - aPagar
+            };
+        }
+
+        function atualizarVariacaoDashboard(
+            elementId,
+            atual,
+            anterior,
+            maiorEhMelhor = true
+        ) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+
+            const diferenca = Number(atual || 0) - Number(anterior || 0);
+
+            el.classList.remove(
+                'compare-good',
+                'compare-bad',
+                'compare-neutral'
+            );
+
+            if (Math.abs(diferenca) < 0.005) {
+                el.textContent = 'Sem mudança';
+                el.classList.add('compare-neutral');
+                return;
+            }
+
+            const seta = diferenca > 0 ? '↑' : '↓';
+
+            if (Math.abs(Number(anterior || 0)) < 0.005) {
+                el.textContent =
+                    `${seta} ${formatarMoeda(Math.abs(diferenca))} vs. mês anterior`;
+            } else {
+                const pct = Math.abs(
+                    (diferenca / Math.abs(anterior)) * 100
+                );
+
+                el.textContent = `${seta} ${pct.toFixed(0)}% vs. mês anterior`;
+            }
+
+            const melhorou =
+                maiorEhMelhor
+                    ? diferenca > 0
+                    : diferenca < 0;
+
+            el.classList.add(
+                melhorou ? 'compare-good' : 'compare-bad'
+            );
+        }
+
+        function atualizarResumoPatrimonialDashboard() {
+            const saldoContasEl =
+                document.getElementById('dashboard-accounts-balance');
+            const detalheContasEl =
+                document.getElementById('dashboard-accounts-detail');
+            const faturasEl =
+                document.getElementById('dashboard-invoices-open');
+            const detalheFaturasEl =
+                document.getElementById('dashboard-invoices-detail');
+
+            if (
+                !saldoContasEl ||
+                !detalheContasEl ||
+                !faturasEl ||
+                !detalheFaturasEl
+            ) {
+                return;
+            }
+
+            const ativas =
+                Array.isArray(contasCache)
+                    ? contasCache.filter(c => c.ativo !== false)
+                    : [];
+
+            const saldoContas = ativas.reduce(
+                (total, conta) =>
+                    total + Number(conta.saldoAtual || 0),
+                0
+            );
+
+            saldoContasEl.textContent = formatarMoeda(saldoContas);
+            saldoContasEl.style.color =
+                saldoContas < 0 ? 'var(--danger)' : 'var(--primary)';
+
+            detalheContasEl.textContent =
+                ativas.length > 0
+                    ? `${ativas.length} conta(s)/carteira(s) ativa(s)`
+                    : 'Nenhuma conta ativa';
+
+            const mesAno =
+                dashboardUltimoContexto?.mesAno ||
+                filtroMesInput.value ||
+                mesAtual;
+
+            const txFaturaMes =
+                Array.isArray(transacoesCartaoCache)
+                    ? transacoesCartaoCache.filter(t =>
+                        String(t.fatura_mes || '').substring(0, 7) === mesAno
+                    )
+                    : [];
+
+            let restanteFaturas = 0;
+            const cartoesComSaldo = new Set();
+
+            txFaturaMes.forEach(t => {
+                const valor = Number(t.valor || 0);
+                const pago = Math.max(
+                    0,
+                    Math.min(valor, Number(t.valor_pago || 0))
+                );
+                const restante = Math.max(0, valor - pago);
+
+                if (restante > 0.005) {
+                    restanteFaturas += restante;
+
+                    if (t.cartao_id) {
+                        cartoesComSaldo.add(String(t.cartao_id));
+                    }
+                }
+            });
+
+            faturasEl.textContent = formatarMoeda(restanteFaturas);
+            faturasEl.style.color =
+                restanteFaturas > 0
+                    ? 'var(--warning)'
+                    : 'var(--primary)';
+
+            detalheFaturasEl.textContent =
+                cartoesComSaldo.size > 0
+                    ? `${cartoesComSaldo.size} cartão(ões) com saldo no mês`
+                    : 'Nenhuma fatura em aberto';
+        }
+
+        function renderizarPendenciasDashboard(transacoesDoMes) {
+            const list =
+                document.getElementById('dashboard-pending-list');
+            const count =
+                document.getElementById('dashboard-pending-count');
+
+            if (!list || !count) return;
+
+            const pendencias = (transacoesDoMes || [])
+                .filter(t => {
+                    const restante =
+                        Number(t.valor || 0) -
+                        Number(t.valorPago || 0);
+
+                    return (
+                        (t.status === 'Pendente' || t.status === 'Parcial') &&
+                        restante > 0.005
+                    );
+                })
+                .sort((a, b) =>
+                    String(a.data || '').localeCompare(String(b.data || ''))
+                );
+
+            count.textContent = `${pendencias.length} pendência(s)`;
+
+            if (pendencias.length === 0) {
+                list.innerHTML =
+                    '<div class="dashboard2-empty">Nenhuma pendência no mês.</div>';
+                return;
+            }
+
+            list.innerHTML = pendencias
+                .slice(0, 5)
+                .map(t => {
+                    const restante = Math.max(
+                        0,
+                        Number(t.valor || 0) -
+                        Number(t.valorPago || 0)
+                    );
+
+                    const vencida =
+                        t.tipo === 'saida' &&
+                        t.data &&
+                        t.data < hojeStr;
+
+                    const statusTexto =
+                        vencida
+                            ? 'Vencida'
+                            : (
+                                t.tipo === 'entrada'
+                                    ? 'A receber'
+                                    : 'A pagar'
+                            );
+
+                    return `
+                        <div class="dashboard2-list-item">
+                            <div class="dashboard2-list-main">
+                                <div class="dashboard2-list-title">
+                                    ${escaparHTML(t.descricao || 'Lançamento')}
+                                </div>
+                                <div class="dashboard2-list-meta">
+                                    ${formatarDataBR(t.data)}
+                                    • ${escaparHTML(t.categoria || 'Outros')}
+                                </div>
+                            </div>
+
+                            <div class="dashboard2-list-value">
+                                <strong>${formatarMoeda(restante)}</strong>
+                                <small class="${vencida ? 'overdue' : 'pending'}">
+                                    ${statusTexto}
+                                </small>
+                            </div>
+                        </div>
+                    `;
+                })
+                .join('');
+        }
+
+        function renderizarMaioresGastosDashboard(transacoesDoMes) {
+            const list =
+                document.getElementById('dashboard-top-expenses');
+
+            if (!list) return;
+
+            const despesas = (transacoesDoMes || [])
+                .filter(t => t.tipo === 'saida')
+                .sort(
+                    (a, b) =>
+                        Number(b.valor || 0) - Number(a.valor || 0)
+                )
+                .slice(0, 5);
+
+            if (despesas.length === 0) {
+                list.innerHTML =
+                    '<div class="dashboard2-empty">Nenhuma despesa no mês.</div>';
+                return;
+            }
+
+            list.innerHTML = despesas
+                .map((t, index) => `
+                    <div class="dashboard2-list-item">
+                        <div class="dashboard2-list-main">
+                            <div class="dashboard2-list-title">
+                                ${index + 1}. ${escaparHTML(t.descricao || 'Despesa')}
+                            </div>
+                            <div class="dashboard2-list-meta">
+                                ${escaparHTML(t.categoria || 'Outros')}
+                                • ${formatarDataBR(t.data)}
+                            </div>
+                        </div>
+
+                        <div class="dashboard2-list-value">
+                            <strong>${formatarMoeda(Number(t.valor || 0))}</strong>
+                            <small class="pending">
+                                ${t.status === 'Pago' ? 'Pago' : (t.status === 'Parcial' ? 'Parcial' : 'Comprometido')}
+                            </small>
+                        </div>
+                    </div>
+                `)
+                .join('');
+        }
+
+        function atualizarDashboard2(contexto) {
+            if (!contexto) return;
+
+            dashboardUltimoContexto = contexto;
+
+            const {
+                todasTransacoes,
+                transacoesDoMes,
+                vencidasGeral,
+                recebido,
+                pago,
+                saldoDisponivel,
+                saldoProjetado,
+                mesAno
+            } = contexto;
+
+            const titulo =
+                document.getElementById('dashboard-month-title');
+
+            if (titulo) {
+                titulo.textContent = formatarMesDashboard(mesAno);
+            }
+
+            const health =
+                document.getElementById('dashboard-health');
+
+            if (health) {
+                health.classList.remove(
+                    'positive',
+                    'warning',
+                    'negative',
+                    'neutral'
+                );
+
+                if (saldoProjetado > 0.005) {
+                    health.textContent = '🟢 Projeção positiva';
+                    health.classList.add('positive');
+                } else if (saldoProjetado < -0.005) {
+                    health.textContent = '🔴 Projeção negativa';
+                    health.classList.add('negative');
+                } else {
+                    health.textContent = '🟡 Projeção zerada';
+                    health.classList.add('warning');
+                }
+            }
+
+            const overdueValue = (vencidasGeral || []).reduce(
+                (total, t) =>
+                    total + Math.max(
+                        0,
+                        Number(t.valor || 0) -
+                        Number(t.valorPago || 0)
+                    ),
+                0
+            );
+
+            const overdueValueEl =
+                document.getElementById('dashboard-overdue-value');
+            const overdueDetailEl =
+                document.getElementById('dashboard-overdue-detail');
+
+            if (overdueValueEl) {
+                overdueValueEl.textContent = formatarMoeda(overdueValue);
+                overdueValueEl.style.color =
+                    overdueValue > 0
+                        ? 'var(--danger)'
+                        : 'var(--primary)';
+            }
+
+            if (overdueDetailEl) {
+                overdueDetailEl.textContent =
+                    vencidasGeral?.length
+                        ? `${vencidasGeral.length} conta(s) vencida(s) no total`
+                        : 'Nenhuma conta vencida';
+            }
+
+            const mesAnterior =
+                mesAnteriorDashboard(mesAno);
+
+            const txAnterior =
+                (todasTransacoes || []).filter(
+                    t => t.data && t.data.startsWith(mesAnterior)
+                );
+
+            const anterior =
+                calcularFluxosDashboard(txAnterior);
+
+            const previousLabel =
+                document.getElementById('dashboard-previous-month');
+
+            if (previousLabel) {
+                previousLabel.textContent =
+                    formatarMesDashboard(mesAnterior);
+            }
+
+            const currentReceived =
+                document.getElementById('compare-received-current');
+            const currentPaid =
+                document.getElementById('compare-paid-current');
+            const currentResult =
+                document.getElementById('compare-result-current');
+
+            if (currentReceived) {
+                currentReceived.textContent = formatarMoeda(recebido);
+            }
+
+            if (currentPaid) {
+                currentPaid.textContent = formatarMoeda(pago);
+            }
+
+            if (currentResult) {
+                currentResult.textContent = formatarMoeda(saldoDisponivel);
+                currentResult.style.color =
+                    saldoDisponivel < 0
+                        ? 'var(--danger)'
+                        : 'var(--primary)';
+            }
+
+            atualizarVariacaoDashboard(
+                'compare-received-change',
+                recebido,
+                anterior.recebido,
+                true
+            );
+
+            atualizarVariacaoDashboard(
+                'compare-paid-change',
+                pago,
+                anterior.pago,
+                false
+            );
+
+            atualizarVariacaoDashboard(
+                'compare-result-change',
+                saldoDisponivel,
+                anterior.saldoDisponivel,
+                true
+            );
+
+            renderizarPendenciasDashboard(transacoesDoMes);
+            renderizarMaioresGastosDashboard(transacoesDoMes);
+            atualizarResumoPatrimonialDashboard();
+        }
+
+
 function normalizarTransacaoBanco(t) {
             const valor = Number(t.valor || 0);
 
@@ -296,6 +755,20 @@ function normalizarTransacaoBanco(t) {
                         ? 'var(--danger)'
                         : (pct > 80 ? 'var(--warning)' : 'var(--primary)');
 
+                atualizarDashboard2({
+                    todasTransacoes,
+                    transacoesDoMes,
+                    vencidasGeral,
+                    recebido,
+                    aReceber,
+                    pago,
+                    aPagar,
+                    saldoDisponivel,
+                    saldoProjetado,
+                    comprometido,
+                    mesAno: mesAno || mesAtual
+                });
+
                 // Busca e status filtram somente o histórico exibido.
                 let filtradas = [...transacoesDoMes];
 
@@ -460,20 +933,40 @@ function normalizarTransacaoBanco(t) {
         function atualizarGrafico(transacoes) {
             const despesas = transacoes.filter(t => t.tipo === 'saida');
             const catMap = {};
+            const canvas = document.getElementById('categoryChart');
+            const empty = document.getElementById('category-chart-empty');
+
+            if (!canvas) return;
 
             despesas.forEach(t => {
-                catMap[t.categoria] =
-                    (catMap[t.categoria] || 0) + Number(t.valor || 0);
-            });
+                const categoria = t.categoria || 'Outros';
 
-            const ctx = document.getElementById('categoryChart').getContext('2d');
+                catMap[categoria] =
+                    (catMap[categoria] || 0) + Number(t.valor || 0);
+            });
 
             if (chartInstance) {
                 chartInstance.destroy();
                 chartInstance = null;
             }
 
-            if (Object.keys(catMap).length === 0) return;
+            if (Object.keys(catMap).length === 0) {
+                canvas.style.display = 'none';
+
+                if (empty) {
+                    empty.style.display = 'flex';
+                }
+
+                return;
+            }
+
+            canvas.style.display = 'block';
+
+            if (empty) {
+                empty.style.display = 'none';
+            }
+
+            const ctx = canvas.getContext('2d');
 
             chartInstance = new Chart(ctx, {
                 type: 'doughnut',
@@ -489,18 +982,32 @@ function normalizarTransacaoBanco(t) {
                             '#ec4899',
                             '#14b8a6',
                             '#64748b'
-                        ]
+                        ],
+                        borderWidth: 0,
+                        hoverOffset: 4
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    cutout: '68%',
                     plugins: {
                         legend: {
                             position: 'right',
                             labels: {
-                                boxWidth: 10,
-                                font: { size: 10 }
+                                boxWidth: 9,
+                                boxHeight: 9,
+                                usePointStyle: true,
+                                pointStyle: 'circle',
+                                padding: 10,
+                                font: { size: 9 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label(context) {
+                                    return `${context.label}: ${formatarMoeda(context.raw)}`;
+                                }
                             }
                         }
                     }
