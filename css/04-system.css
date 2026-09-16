@@ -18,6 +18,31 @@
             text-align: center;
         }
 
+        /* Rodapé / marca */
+        .app-footer {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 24px;
+            padding: 16px 0 8px;
+        }
+
+        .footer-logo-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 20px;
+            border-radius: 14px;
+            background: var(--header-bg);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        }
+
+        .footer-logo {
+            max-width: 130px;
+            height: auto;
+            object-fit: contain;
+        }
+
         /* Toast Notifications */
         #toast-container {
             position: fixed;

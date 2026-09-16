@@ -1,4 +1,4 @@
-const CACHE_NAME = 'financas-v16';
+const CACHE_NAME = 'financas-v18';
 
 const STATIC_ASSETS = [
   "./",

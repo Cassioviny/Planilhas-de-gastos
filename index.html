@@ -82,11 +82,12 @@
         </div>
 
         <header>
-            <div class="header-logo-container">
-                <img src="logo.png" alt="Viny Webdesign Logo" class="brand-logo">
-                <h1>Meu Controle Financeiro Pro</h1>
-            </div>
-            <p>Desenvolvido por Viny Webdesign • Gestão Financeira Completa</p>
+            <h1>Meu Controle Financeiro Pro</h1>
+            <p class="header-subtitle">
+                <span>Desenvolvido por Viny Webdesign</span>
+                <span class="header-subtitle-dot">•</span>
+                <span>Gestão Financeira Completa</span>
+            </p>
         </header>
 
         <!-- Alertas -->
@@ -568,6 +569,13 @@
             <button class="btn-aux" id="btn-migrar-local" style="display:none;" onclick="migrarDadosLocais()">☁️ Migrar dados deste navegador</button>
             <input type="file" id="file-input" accept=".json,application/json" style="display: none;" onchange="importarBackup(event)">
         </div>
+
+        <!-- Marca -->
+        <footer class="app-footer">
+            <div class="footer-logo-badge">
+                <img src="logo.png" alt="Viny Webdesign Logo" class="footer-logo">
+            </div>
+        </footer>
     </div>
 
     <div class="payment-history-modal" id="payment-history-modal" onclick="fecharHistoricoLiquidacao(event)">
